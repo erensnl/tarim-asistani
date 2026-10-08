@@ -1,0 +1,47 @@
+export const plantReference = [
+  ["Fındık", "Hazelnut", "Corylus avellana", "Broad, simple alternate leaf; rounded or heart-shaped base, pointed tip, doubly serrated edge, prominent veins, often rough or hairy surface."],
+  ["Tütün", "Tobacco", "Nicotiana tabacum", "Large, simple ovate leaf; mostly smooth or slightly wavy edge, prominent midrib; mature leaves attach singly along the stem."],
+  ["Yer fıstığı", "Peanut", "Arachis hypogaea", "Distinctive pinnate compound leaf with four leaflets in two opposite pairs; not one single oval blade."],
+  ["Domates", "Tomato", "Solanum lycopersicum", "Alternate, pinnate or deeply divided compound-looking leaf with irregular toothed leaflets; often aromatic."],
+  ["Patates", "Potato", "Solanum tuberosum", "Pinnate compound leaf with several unequal oval leaflets and smaller leaflets between them."],
+  ["Biber", "Pepper", "Capsicum annuum", "Simple, smooth-edged, usually narrow ovate or lance-shaped leaf with pointed tip."],
+  ["Patlıcan", "Eggplant", "Solanum melongena", "Large, simple broad ovate leaf, often softly hairy with wavy or shallowly lobed edges."],
+  ["Salatalık", "Cucumber", "Cucumber", "Broad rough leaf with palm-shaped veins and shallow to moderate lobes."],
+  ["Kabak", "Squash", "Squash", "Broad rough leaf, usually palmately veined and lobed; shape varies by cultivated type."],
+  ["Karpuz", "Watermelon", "Citrullus lanatus", "Rough, deeply divided or pinnately lobed leaf with narrow rounded lobes."],
+  ["Üzüm", "Grape", "Vitis vinifera", "Simple leaf with five main palmate veins, toothed edge and usually three to five lobes."],
+  ["Elma", "Apple", "Malus domestica", "Simple alternate oval leaf with pointed tip, toothed edge and a short petiole."],
+  ["Armut", "Pear", "Pyrus communis", "Simple oval to rounded leaf with fine serrations and a relatively long petiole."],
+  ["Kiraz", "Cherry", "Prunus avium", "Simple elliptic, finely toothed leaf with a pointed tip and often two small glands near the petiole."],
+  ["Şeftali", "Peach", "Prunus persica", "Long, narrow lance-shaped simple leaf with finely serrated edge."],
+  ["Kayısı", "Apricot", "Prunus armeniaca", "Simple broad oval leaf with pointed tip, rounded to heart-shaped base and serrated edge."],
+  ["Ceviz", "Walnut", "Juglans regia", "Large pinnate compound leaf with multiple opposite or near-opposite leaflets along a central rachis."],
+  ["Kestane", "Chestnut", "Castanea sativa", "Long lance-shaped simple leaf with conspicuous parallel side veins ending at large pointed marginal teeth."],
+  ["Zeytin", "Olive", "Olea europaea", "Narrow leathery simple leaf; dark green above and typically silvery or pale underneath."],
+  ["İncir", "Fig", "Ficus carica", "Large rough simple leaf with several deep palmate lobes and a long petiole."],
+  ["Nar", "Pomegranate", "Punica granatum", "Small, narrow, smooth-edged, glossy simple leaves, often opposite or clustered on short shoots."],
+  ["Turunçgil", "Citrus", "Citrus", "Glossy simple oval leaf; many cultivated types have a visibly winged leaf stalk."],
+  ["Çay", "Tea", "Camellia sinensis", "Glossy elliptic simple leaf with fine serrations, especially on the outer half."],
+  ["Çilek", "Strawberry", "Fragaria", "Trifoliate leaf: three toothed leaflets radiating from one point."],
+  ["Ahududu", "Raspberry", "Rubus idaeus", "Compound leaf with usually three to five toothed leaflets; underside often pale."],
+  ["Fasulye", "Common bean", "Phaseolus vulgaris", "Trifoliate leaf with three broad pointed leaflets."],
+  ["Soya fasulyesi", "Soybean", "Glycine max", "Trifoliate leaf with three broad leaflets, usually hairy."],
+  ["Nohut", "Chickpea", "Cicer arietinum", "Pinnate leaf with several small, rounded, toothed leaflets along a central stalk."],
+  ["Mercimek", "Lentil", "Lens culinaris", "Pinnate leaf with several pairs of small narrow oval leaflets; often ends in a tendril."],
+  ["Ayçiçeği", "Sunflower", "Helianthus annuus", "Large rough simple leaf, broadly ovate to heart-shaped, with toothed edges and long petiole."],
+  ["Pamuk", "Cotton", "Gossypium", "Simple palmately veined leaf, commonly with three to five distinct lobes."],
+  ["Mısır", "Maize", "Zea mays", "Long strap-shaped blade with parallel veins and a prominent central midrib."],
+  ["Buğday", "Wheat", "Triticum aestivum", "Narrow grass blade with parallel veins and a leaf sheath wrapping the stem."],
+  ["Arpa", "Barley", "Hordeum vulgare", "Narrow parallel-veined grass blade; auricles at the leaf collar may clasp the stem."],
+  ["Antep fıstığı", "Pistachio", "Pistacia vera", "Pinnate compound leaf with several broad oval leaflets on a central rachis."],
+  ["Dut", "Mulberry", "Morus", "Simple alternate leaf with toothed edge; leaves on one tree may be unlobed or deeply lobed."],
+  ["Kivi", "Kiwi", "Actinidia deliciosa", "Large broad heart-shaped simple leaf, usually hairy on the surface and stalk."],
+  ["Avokado", "Avocado", "Persea americana", "Simple elliptic to oval leaf with smooth margins, pinnate veins and leathery texture."],
+  ["Gül", "Rose", "Rosa", "Pinnate compound leaf with usually five to seven serrated leaflets; prickles belong to the stem, not leaf."],
+];
+
+export function formatPlantReference() {
+  return plantReference
+    .map(([turkish, english, scientific, traits]) => `- ${turkish} (${english}), ${scientific}: ${traits}`)
+    .join("\n");
+}
