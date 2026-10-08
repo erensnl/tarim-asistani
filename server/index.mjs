@@ -93,10 +93,10 @@ app.post("/api/analyze", async (request, response) => {
         error: "Pl@ntNet API anahtarı geçersiz veya proje erişim izni bulunmuyor.",
       });
     }
-    if (error.code === "invalid_project") {
-      console.error("Pl@ntNet API rejected the configured project name.");
+    if (error.code === "project_unavailable") {
+      console.error("Pl@ntNet API does not provide the all-species project for this request.");
       return response.status(502).json({
-        error: "Pl@ntNet proje adı geçersiz. PLANTNET_PROJECT değerini all olarak ayarlayın.",
+        error: "Pl@ntNet tüm türler projesini bu istek için bulamadı. Pl@ntNet API anahtarınızın API erişimini kontrol edin.",
       });
     }
     if (error.code === "invalid_request") {

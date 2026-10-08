@@ -106,7 +106,7 @@ test("reports API authorization failures without exposing response content", asy
 
 test("classifies upstream project, quota, and server failures", async () => {
   for (const [status, expectedCode] of [
-    [404, "invalid_project"],
+    [404, "project_unavailable"],
     [429, "rate_limit"],
     [503, "upstream_unavailable"],
   ]) {

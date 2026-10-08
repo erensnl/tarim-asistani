@@ -6,7 +6,6 @@ export async function identifyPlant({
   imageBuffer,
   mimeType,
   apiKey = process.env.PLANTNET_API_KEY,
-  project = process.env.PLANTNET_PROJECT || "all",
   fetchImpl = fetch,
 }) {
   if (!apiKey) {
@@ -20,7 +19,7 @@ export async function identifyPlant({
   form.append("images", new Blob([imageBuffer], { type: mimeType }), `yaprak-fotografi.${extension}`);
   form.append("organs", "leaf");
 
-  const url = new URL(`${plantNetApiUrl}/${encodeURIComponent(project)}`);
+  const url = new URL(`${plantNetApiUrl}/all`);
   url.searchParams.set("api-key", apiKey);
 
   let upstream;
@@ -73,7 +72,7 @@ function getNetworkErrorCode(error) {
 function getUpstreamErrorCode(status) {
   if (status === 400) return "invalid_request";
   if (status === 401 || status === 403) return "invalid_credentials";
-  if (status === 404) return "invalid_project";
+  if (status === 404) return "project_unavailable";
   if (status === 413) return "image_too_large";
   if (status === 429) return "rate_limit";
   if (status >= 500) return "upstream_unavailable";

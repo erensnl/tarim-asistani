@@ -16,7 +16,7 @@ npm run dev
 
 Vite arayüzü `http://localhost:5173`, API sunucusu `http://localhost:3001` adresinde açılır. Vite `/api` isteklerini sunucuya yönlendirir.
 
-Üretim derlemesi için `npm run build`; üretim sunucusunu başlatmak için `npm start` komutunu çalıştırın. `PORT`, isteğe bağlı `PLANTNET_PROJECT` (varsayılan `all`) ve `NVIDIA_MODEL` değerleri `.env` dosyasında değiştirilebilir.
+Üretim derlemesi için `npm run build`; üretim sunucusunu başlatmak için `npm start` komutunu çalıştırın. `PORT` ve `NVIDIA_MODEL` değerleri `.env` dosyasında değiştirilebilir.
 
 ## Mobil uygulama
 
