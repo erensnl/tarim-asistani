@@ -48,6 +48,10 @@ app.post("/api/analyze", async (request, response) => {
     return response.status(400).json({ error: "Yalnızca JPG, PNG veya WEBP görselleri analiz edilebilir." });
   }
 
+  if (match[2].length % 4 !== 0 || match[2].length > Math.ceil(maxImageBytes / 3) * 4) {
+    return response.status(400).json({ error: "Görsel boş, bozuk veya 10 MB sınırını aşıyor." });
+  }
+
   const imageBuffer = Buffer.from(match[2], "base64");
   if (imageBuffer.length === 0 || imageBuffer.length > maxImageBytes) {
     return response.status(400).json({ error: "Görsel boş veya 10 MB sınırını aşıyor." });
@@ -150,6 +154,21 @@ app.post("/api/analyze", async (request, response) => {
   }
 });
 
+app.use((error, _request, response, next) => {
+  if (response.headersSent) {
+    next(error);
+    return;
+  }
+  if (error.type === "entity.too.large") {
+    return response.status(413).json({ error: "İstek boyutu sınırı aşıyor. 10 MB'dan küçük bir fotoğraf deneyin." });
+  }
+  if (error.type === "entity.parse.failed") {
+    return response.status(400).json({ error: "İstek verisi okunamadı. Lütfen fotoğrafı yeniden seçip deneyin." });
+  }
+  console.error("Unhandled API request error:", error.message);
+  return response.status(500).json({ error: "Sunucuda beklenmeyen bir hata oluştu. Lütfen tekrar deneyin." });
+});
+
 async function assessPlantHealth(imageDataUrl, plant) {
   const apiKey = process.env.NVIDIA_API_KEY;
   if (!apiKey) return null;
@@ -209,7 +228,13 @@ Return only this JSON shape: {"plant":"${plant.plant}","scientificName":"${plant
 }
 
 if (process.env.NODE_ENV === "production") {
-  app.use(express.static(path.resolve(__dirname, "../dist")));
+  app.use(express.static(path.resolve(__dirname, "../dist"), {
+    setHeaders(response, filePath) {
+      if (/-[a-z0-9_-]{8,}\./i.test(path.basename(filePath))) {
+        response.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      }
+    },
+  }));
   app.get("*", (_request, response) => {
     response.sendFile(path.resolve(__dirname, "../dist/index.html"));
   });

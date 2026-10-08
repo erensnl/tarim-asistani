@@ -45,7 +45,9 @@ Render'ın ücretsiz servisi bir süre istek almadığında uykuya geçebilir; y
 ## Analiz akışı
 
 - JPG, PNG ve WEBP görseli seçme, sürükleyip bırakma, mobil kamerayla çekme ve önizleme.
-- Tarayıcıda dosya türü ve 10 MB boyut kontrolü.
+- Fotoğraf boyutu tarayıcıda kontrol edilir ve tarayıcı destekliyorsa analiz kopyası 2048 piksele küçültülür; bu işlem gönderim boyutunu ve analiz bekleme süresini azaltır, özgün dosyayı değiştirmez.
+- API analiz isteği uzun süren model/bitki tanıma çağrılarına uygun zaman aşımı ve Türkçe bağlantı/yanıt hataları kullanır. Geçersiz veya aşırı büyük JSON isteklerine açık hata yanıtı döndürülür.
+- Harici web fontu indirilmesi gerekmez; sistem yazı tipi yedeğiyle sayfa çevrimdışı ağlarda da metni hemen gösterebilir.
 - API anahtarı yalnızca Express sunucusunda kalır; React uygulamasına gönderilmez.
 - Bitki tanıma için sunucu fotoğrafı Pl@ntNet `v2/identify` servisine `leaf` organı olarak iletir. Tanınan bilimsel ad katalogdaki Türkçe/İngilizce adla eşleşiyorsa bu ad gösterilir; katalog dışı bitkilerde bilimsel ad kullanılır.
 - Diğer Pl@ntNet sonuçları eşleşme puanlarıyla gösterilir. Bu puanlar doğrulanmış olasılık değildir; API'nin tür teşhisi her görüntüde doğru olmayabilir.

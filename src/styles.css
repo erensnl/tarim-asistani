@@ -1,7 +1,5 @@
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap");
-
 :root {
-  font-family: "DM Sans", sans-serif;
+  font-family: "DM Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
   color: #203026;
   background: #f5f7ef;
   font-synthesis: none;
@@ -25,7 +23,7 @@ button { cursor: pointer; }
 a { color: inherit; text-decoration: none; }
 .app-shell { max-width: 1440px; margin: 0 auto; overflow: hidden; background: #f8f9f4; }
 .topbar { height: 82px; display: flex; align-items: center; justify-content: space-between; padding: 0 8.3%; border-bottom: 1px solid rgba(45, 66, 44, .09); }
-.brand { display: inline-flex; align-items: center; gap: 10px; color: #294b30; font: 800 19px "Manrope", sans-serif; letter-spacing: -.8px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; color: #294b30; font: 800 19px "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif; letter-spacing: -.8px; }
 .brand-mark { width: 33px; height: 33px; display: grid; place-items: center; color: #f8f9f4; background: #426b47; border-radius: 10px 10px 10px 3px; }
 .brand-mark svg { width: 24px; height: 24px; }
 .brand-light { color: #88917f; font-weight: 500; }
@@ -45,7 +43,7 @@ main { padding: 0 8.3%; }
 .eyebrow { display: flex; align-items: center; gap: 9px; margin-bottom: 18px; }
 .eyebrow-line { width: 20px; height: 1px; background: #91a181; }
 h1, h2, h3, p { margin-top: 0; }
-h1, h2, h3 { font-family: "Manrope", sans-serif; }
+h1, h2, h3 { font-family: "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif; }
 h1 { margin-bottom: 15px; color: #21382a; font-size: clamp(35px, 4.2vw, 54px); line-height: 1.12; font-weight: 700; letter-spacing: -2.6px; }
 h1 span { color: #66845b; }
 .hero-description { max-width: 490px; color: #737b70; font-size: 14px; line-height: 1.75; margin-bottom: 19px; }
@@ -62,7 +60,7 @@ h1 span { color: #66845b; }
 .art-leaf-four { left: 56%; top: 53px; transform: rotate(198deg) scale(.7); background: linear-gradient(135deg, #9cb18a, #617e5d); }
 .art-sparkle { position: absolute; color: #b3bf98; font-size: 17px; }
 .sparkle-one { top: 61px; left: 17%; }.sparkle-two { top: 188px; right: 8%; font-size: 12px; }
-.art-caption { position: absolute; right: 0; bottom: 10px; color: #85907d; font: 500 12px/1.5 "Manrope", sans-serif; text-align: right; letter-spacing: .1px; }
+.art-caption { position: absolute; right: 0; bottom: 10px; color: #85907d; font: 500 12px/1.5 "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif; text-align: right; letter-spacing: .1px; }
 .workspace { padding: 31px 0 34px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .section-heading, .result-heading { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin-bottom: 18px; }
 .section-heading h2, .result-heading h2, .how-intro h2 { margin: 7px 0 0; color: #293a2d; font-size: 23px; letter-spacing: -.8px; }
@@ -107,7 +105,7 @@ h1 span { color: #66845b; }
 .spinner-green { width: 22px; height: 22px; border-color: #dae4d4; border-top-color: #527b4e; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .loading-card { display: flex; align-items: center; gap: 14px; margin-top: 17px; padding: 18px; border: 1px solid #e3e9dc; border-radius: 9px; background: #f4f7ef; }
-.loading-card strong { display: block; margin-bottom: 3px; color: #354837; font: 600 13px "Manrope", sans-serif; }
+.loading-card strong { display: block; margin-bottom: 3px; color: #354837; font: 600 13px "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif; }
 .loading-card p { margin: 0; color: #84907e; font-size: 11px; }
 .result-section { padding-top: 32px; scroll-margin-top: 24px; }
 .result-heading { align-items: center; }
@@ -132,7 +130,7 @@ h1 span { color: #66845b; }
 .alternative-list li { padding-left: 1px; }
 .alternative-list li b { color: #665326; }
 .confidence-block { padding: 4px 0 0 20px; }
-.confidence-number { color: #50754b; font: 700 27px "Manrope", sans-serif; line-height: 1; }
+.confidence-number { color: #50754b; font: 700 27px "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif; line-height: 1; }
 .confidence-number span { margin-left: 2px; font-size: 15px; }
 .confidence-caption { display: block; margin-top: 6px; color: #999f94; font-size: 9px; }
 .steps-block { display: grid; grid-template-columns: minmax(175px, 1fr) 2fr; gap: 20px; padding: 17px 20px; border-top: 1px solid #edf0e9; background: #f9faf6; }
@@ -148,7 +146,7 @@ h1 span { color: #66845b; }
 .how-intro h2 { font-size: 20px; }
 .how-steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 17px; }
 .how-step { display: flex; align-items: start; gap: 10px; }
-.how-number { color: #9aad8b; font: 600 12px "Manrope", sans-serif; }
+.how-number { color: #9aad8b; font: 600 12px "Manrope", system-ui, -apple-system, "Segoe UI", sans-serif; }
 .how-step h3 { margin: 1px 0 5px; color: #485746; font-size: 11px; }
 .how-step p { margin: 0; color: #92998d; font-size: 9px; line-height: 1.5; }
 .footer { min-height: 66px; display: flex; align-items: center; justify-content: space-between; padding: 0 8.3%; border-top: 1px solid var(--line); color: #90978b; font-size: 10px; }

@@ -13,6 +13,33 @@ type AnalysisResult = {
   healthAssessmentAvailable: boolean;
 };
 
+type AnalyzeResponse = {
+  result: AnalysisResult;
+};
+
+const maxUploadBytes = 10 * 1024 * 1024;
+const maxAnalysisDimension = 2048;
+const analysisTimeoutMs = 210_000;
+
+function isAnalysisResult(value: unknown): value is AnalysisResult {
+  if (!value || typeof value !== "object") return false;
+  const result = value as Record<string, unknown>;
+  return typeof result.plant === "string" &&
+    typeof result.scientificName === "string" &&
+    typeof result.condition === "string" &&
+    (typeof result.confidence === "number" || result.confidence === null) &&
+    typeof result.description === "string" &&
+    Array.isArray(result.steps) &&
+    result.steps.every((step) => typeof step === "string") &&
+    typeof result.healthAssessmentAvailable === "boolean" &&
+    (result.alternatives === undefined || (
+      Array.isArray(result.alternatives) &&
+      result.alternatives.every((item) =>
+        item && typeof item.name === "string" && typeof item.evidence === "string",
+      )
+    ));
+}
+
 function LeafMark({ className = "" }: { className?: string }) {
   return (
     <svg
@@ -67,20 +94,27 @@ function App() {
     !/^(belirlenemedi|bilinmiyor|unknown|not identified)$/i.test(result.scientificName.trim());
 
   function saveApiUrl() {
+    let parsed: URL;
     try {
-      const parsed = new URL(apiUrlDraft.trim());
-      if (parsed.protocol !== "https:") {
-        setError("Güvenli bağlantı için API adresi https:// ile başlamalıdır.");
-        return;
-      }
-      const normalizedUrl = parsed.toString().replace(/\/+$/, "");
-      localStorage.setItem("tarim-asistani-api-url", normalizedUrl);
-      setApiBaseUrl(normalizedUrl);
-      setApiUrlDraft(normalizedUrl);
-      setError("");
+      parsed = new URL(apiUrlDraft.trim());
     } catch {
       setError("Geçerli bir HTTPS API adresi girin. Örnek: https://api.ornek.com");
+      return;
     }
+    if (parsed.protocol !== "https:") {
+      setError("Güvenli bağlantı için API adresi https:// ile başlamalıdır.");
+      return;
+    }
+    const normalizedUrl = parsed.toString().replace(/\/+$/, "");
+    try {
+      localStorage.setItem("tarim-asistani-api-url", normalizedUrl);
+    } catch {
+      setError("API adresi bu cihazda kaydedilemedi. Cihaz depolama alanını kontrol edip tekrar deneyin.");
+      return;
+    }
+    setApiBaseUrl(normalizedUrl);
+    setApiUrlDraft(normalizedUrl);
+    setError("");
   }
 
   useEffect(
@@ -98,7 +132,7 @@ function App() {
       setError("Lütfen JPG, PNG veya WEBP biçiminde bir görsel seçin.");
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
+    if (file.size > maxUploadBytes) {
       setError("Görsel boyutu 10 MB'dan küçük olmalıdır.");
       return;
     }
@@ -150,23 +184,57 @@ function App() {
       if (isNative && !apiBaseUrl) {
         throw new Error("Önce API sunucusu ayarına herkese açık HTTPS adresinizi girip kaydedin.");
       }
-      const imageDataUrl = await readImageAsDataUrl(file);
-      const response = await fetch(`${apiBaseUrl}/api/analyze`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ imageDataUrl }),
-      });
-      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload.error || "Analiz sırasında bir hata oluştu.");
+      const imageDataUrl = await prepareImageAsDataUrl(file);
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), analysisTimeoutMs);
+      let response: Response;
+      let payload: unknown;
+      try {
+        response = await fetch(`${apiBaseUrl}/api/analyze`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageDataUrl }),
+          signal: controller.signal,
+        });
+        try {
+          payload = await response.json();
+        } catch (responseError) {
+          if (responseError instanceof Error && responseError.name === "AbortError") {
+            throw responseError;
+          }
+          throw new Error("Sunucudan okunabilir yanıt alınamadı. Lütfen tekrar deneyin.");
+        }
+      } finally {
+        window.clearTimeout(timeout);
       }
-      setResult(payload.result as AnalysisResult);
+      const responsePayload = payload && typeof payload === "object"
+        ? payload as Partial<AnalyzeResponse> & { error?: unknown }
+        : {};
+      if (!response.ok) {
+        throw new Error(
+          typeof responsePayload.error === "string"
+            ? responsePayload.error
+            : `Analiz başarısız oldu (HTTP ${response.status}). Lütfen tekrar deneyin.`,
+        );
+      }
+      if (!isAnalysisResult(responsePayload.result)) {
+        throw new Error("Analiz yanıtı beklenen biçimde değildi. Lütfen tekrar deneyin.");
+      }
+      setResult(responsePayload.result);
       window.setTimeout(
         () => document.getElementById("analysis-result")?.scrollIntoView({ behavior: "smooth", block: "start" }),
         50,
       );
     } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : "Analiz sırasında beklenmeyen bir hata oluştu.");
+      setError(
+        requestError instanceof Error && requestError.name === "AbortError"
+          ? "Analiz çok uzun sürdü ve zaman sınırına ulaştı. Bağlantınızı kontrol edip tekrar deneyin."
+          : requestError instanceof TypeError && /fetch|network/i.test(requestError.message)
+            ? "Sunucuya ulaşılamadı. İnternet bağlantınızı ve API sunucu adresini kontrol edip tekrar deneyin."
+          : requestError instanceof Error
+            ? requestError.message
+            : "Analiz sırasında beklenmeyen bir hata oluştu.",
+      );
     } finally {
       setIsAnalyzing(false);
     }
@@ -387,7 +455,44 @@ function App() {
   );
 }
 
-function readImageAsDataUrl(file: File): Promise<string> {
+async function prepareImageAsDataUrl(file: File): Promise<string> {
+  if (typeof createImageBitmap === "function") {
+    let bitmap: ImageBitmap | undefined;
+    try {
+      bitmap = await createImageBitmap(file);
+      const scale = Math.min(
+        1,
+        maxAnalysisDimension / Math.max(bitmap.width, bitmap.height),
+      );
+      if (scale === 1 && file.type === "image/jpeg") {
+        return await readImageAsDataUrl(file);
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale));
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale));
+      const context = canvas.getContext("2d");
+      if (!context) return await readImageAsDataUrl(file);
+
+      context.fillStyle = "#ffffff";
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const optimized = await new Promise<Blob | null>((resolve) =>
+        canvas.toBlob(resolve, "image/jpeg", 0.86),
+      );
+      if (optimized && optimized.size < file.size) {
+        return await readImageAsDataUrl(optimized);
+      }
+    } catch {
+      // Keep analysis available in browsers that cannot decode or resize this image.
+    } finally {
+      bitmap?.close();
+    }
+  }
+  return readImageAsDataUrl(file);
+}
+
+function readImageAsDataUrl(file: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
