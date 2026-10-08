@@ -23,16 +23,23 @@ Proje Capacitor ile Android ve iOS uygulama kabuğu sağlar. Android derlemek i�
 
 Android debug APK'sını `artifacts/tarim-asistani-debug.apk` konumundan indirip Android cihazda test edebilirsiniz. Bu APK test amaçlı debug imzasıyla oluşturulmuştur; Google Play dağıtımı için release imzası gerekir.
 
-Mobil uygulama backend'e gerçek bir cihazdan eriştiği için backend'in herkese açık HTTPS adresi gerekir; telefondaki `localhost` telefona karşılık gelir, geliştirme bilgisayarınıza değil. Adresi `VITE_API_BASE_URL` ile derlemeye ekleyebilir veya uygulamadaki **API sunucusu adresi gerekli** alanından HTTPS adresini girip kaydedebilirsiniz. Uygulama adresi cihazda saklar:
+### API sunucusunu yayımlama
+
+Mobil uygulamanın analiz yapabilmesi için uygulama sahibinin bir defa backend'i internette yayımlaması gerekir; uygulama kullanıcıları kendilerine ait sunucu açmaz. Hazır dağıtım ayarı [Render Blueprint](render.yaml) olarak eklenmiştir. Yayımlamak için:
+
+1. [Render Blueprint oluşturma sayfasını](https://dashboard.render.com/blueprint/new?repo=https%3A%2F%2Fgithub.com%2Ferensnl%2Ftarim-asistani) açıp GitHub hesabınızla giriş yapın ve **Apply** ile `tarim-asistani-api` servisini oluşturun.
+2. Render sizden `NVIDIA_API_KEY` değerini isteyecek. NVIDIA Build'den aldığınız anahtarı bu gizli alana girin; anahtarı kaynak koda veya mobil uygulamaya eklemeyin.
+3. İlk dağıtım tamamlanıp health check başarılı olduktan sonra Render Dashboard'da servisi açın. Servisin herkese açık `https://...onrender.com` adresi mobil API adresinizdir.
+4. Mevcut APK'da bu adresi uygulamadaki **API sunucusu adresi** alanına bir kez girip kaydedin. Yeni APK'ya adresi sabitlemek için:
 
 ```bash
 # PowerShell
-$env:VITE_API_BASE_URL="https://api.ornek.com"
+$env:VITE_API_BASE_URL="https://SİZİN-SERVİSİNİZ.onrender.com"
 npm run mobile:sync
 npm run mobile:android
 ```
 
-Uygulama anahtarını yalnızca backend'in `.env` dosyasında tutun; `VITE_` ile başlayan değişkenler mobil istemci paketine eklenir. Android Studio'dan cihaz/emülatör seçerek çalıştırabilirsiniz. `npm run mobile:ios` komutu iOS projesini Xcode'da açar (macOS gerekir). `npm run mobile:sync` web uygulamasını derleyip Capacitor platformlarına kopyalar. Mobil uygulama kamera ve galeriden yaprak fotoğrafı seçebilir.
+Render'ın ücretsiz servisi bir süre istek almadığında uykuya geçebilir; yeniden açılması ilk analiz isteğini geciktirebilir. `VITE_` ile başlayan değişkenler mobil istemci paketine eklenir; NVIDIA anahtarını hiçbir zaman bu şekilde eklemeyin. Android Studio'dan cihaz/emülatör seçerek çalıştırabilirsiniz. `npm run mobile:ios` komutu iOS projesini Xcode'da açar (macOS gerekir). `npm run mobile:sync` web uygulamasını derleyip Capacitor platformlarına kopyalar. Mobil uygulama kamera ve galeriden yaprak fotoğrafı seçebilir.
 
 ## Analiz akışı
 

@@ -12,6 +12,10 @@ const maxImageBytes = 10 * 1024 * 1024;
 const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+app.get("/health", (_request, response) => {
+  response.json({ status: "ok" });
+});
+
 app.use(express.json({ limit: "14mb" }));
 
 const capacitorOrigins = new Set(["capacitor://localhost", "http://localhost", "https://localhost"]);
@@ -140,6 +144,6 @@ if (process.env.NODE_ENV === "production") {
   });
 }
 
-app.listen(port, () => {
-  console.log(`Tarım Asistanı sunucusu http://localhost:${port} adresinde çalışıyor.`);
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Tarım Asistanı sunucusu 0.0.0.0:${port} adresinde çalışıyor.`);
 });
