@@ -1,3 +1,6 @@
+import { randomUUID } from "node:crypto";
+import { isIPv4 } from "node:net";
+import https from "node:https";
 import { plantReference } from "./plant-reference.mjs";
 
 const plantNetApiUrl = "https://my-api.plantnet.org/v2/identify";
@@ -7,6 +10,8 @@ export async function identifyPlant({
   mimeType,
   apiKey = process.env.PLANTNET_API_KEY,
   fetchImpl = fetch,
+  resolveAddress = resolveHostnameWithDoh,
+  requestImpl = postPlantNetToResolvedAddress,
 }) {
   if (!apiKey) {
     const error = new Error("Pl@ntNet API anahtarı ayarlanmamış.");
@@ -30,13 +35,28 @@ export async function identifyPlant({
       signal: AbortSignal.timeout(90_000),
     });
   } catch (error) {
-    if (error.name === "TimeoutError" || error.name === "AbortError") {
-      error.code = "timeout";
+    if (isDnsResolutionError(error)) {
+      try {
+        upstream = await requestImpl({
+          url,
+          imageBuffer,
+          mimeType,
+          resolveAddress: () => resolveAddress(url.hostname, fetchImpl),
+        });
+      } catch (fallbackError) {
+        fallbackError.code ??= "connection";
+        fallbackError.networkCode ||= getNetworkErrorCode(error);
+        throw fallbackError;
+      }
     } else {
-      error.code = "connection";
-      error.networkCode = getNetworkErrorCode(error);
+      if (error.name === "TimeoutError" || error.name === "AbortError") {
+        error.code = "timeout";
+      } else {
+        error.code = "connection";
+        error.networkCode = getNetworkErrorCode(error);
+      }
+      throw error;
     }
-    throw error;
   }
 
   if (!upstream.ok) {
@@ -69,8 +89,91 @@ export async function identifyPlant({
 }
 
 function getNetworkErrorCode(error) {
-  const causeCode = error.cause?.code;
-  return typeof causeCode === "string" && /^[A-Z0-9_]{1,40}$/.test(causeCode) ? causeCode : "";
+  let current = error;
+  for (let depth = 0; current && depth < 4; depth += 1) {
+    const causeCode = current.code;
+    if (typeof causeCode === "string" && /^[A-Z0-9_]{1,40}$/.test(causeCode)) return causeCode;
+    current = current.cause;
+  }
+  return "";
+}
+
+function isDnsResolutionError(error) {
+  return ["EAI_AGAIN", "ENOTFOUND", "EAI_FAIL", "EAI_NODATA"]
+    .includes(getNetworkErrorCode(error));
+}
+
+async function resolveHostnameWithDoh(hostname, fetchImpl) {
+  const resolverUrl = new URL("https://dns.google/resolve");
+  resolverUrl.searchParams.set("name", hostname);
+  resolverUrl.searchParams.set("type", "A");
+
+  const response = await fetchImpl(resolverUrl, {
+    headers: { Accept: "application/dns-json" },
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) {
+    throw new Error(`DNS-over-HTTPS resolver returned HTTP ${response.status}.`);
+  }
+
+  const payload = await response.json();
+  const address = payload.Answer?.find((answer) =>
+    answer.type === 1 && typeof answer.data === "string" && isIPv4(answer.data),
+  )?.data;
+  if (!address) throw new Error(`No IPv4 DNS answer was returned for ${hostname}.`);
+  return address;
+}
+
+async function postPlantNetToResolvedAddress({ url, imageBuffer, mimeType, resolveAddress }) {
+  const address = await resolveAddress();
+  const boundary = `----TarimAsistani-${randomUUID()}`;
+  const extension = mimeType === "image/jpeg" ? "jpg" : mimeType.slice("image/".length);
+  const parts = [
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="organs"\r\n\r\nleaf\r\n`),
+    Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="images"; filename="yaprak-fotografi.${extension}"\r\nContent-Type: ${mimeType}\r\n\r\n`),
+    imageBuffer,
+    Buffer.from(`\r\n--${boundary}--\r\n`),
+  ];
+  const body = Buffer.concat(parts);
+
+  return new Promise((resolve, reject) => {
+    const request = https.request({
+      hostname: url.hostname,
+      servername: url.hostname,
+      port: url.port || 443,
+      path: `${url.pathname}${url.search}`,
+      method: "POST",
+      headers: {
+        "Content-Type": `multipart/form-data; boundary=${boundary}`,
+        "Content-Length": body.length,
+      },
+      lookup: (_hostname, options, callback) => {
+        if (options.all) {
+          callback(null, [{ address, family: 4 }]);
+        } else {
+          callback(null, address, 4);
+        }
+      },
+      timeout: 90_000,
+    }, (response) => {
+      const chunks = [];
+      response.on("data", (chunk) => chunks.push(chunk));
+      response.on("end", () => {
+        const responseBody = Buffer.concat(chunks).toString("utf8");
+        const status = response.statusCode || 502;
+        resolve({
+          ok: status >= 200 && status < 300,
+          status,
+          text: async () => responseBody,
+          json: async () => JSON.parse(responseBody),
+        });
+      });
+    });
+
+    request.on("timeout", () => request.destroy(Object.assign(new Error("Pl@ntNet request timed out."), { code: "ETIMEDOUT" })));
+    request.on("error", reject);
+    request.end(body);
+  });
 }
 
 function getUpstreamErrorCode(status, responseBody = "") {

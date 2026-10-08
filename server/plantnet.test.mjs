@@ -78,6 +78,69 @@ test("sends the image to PlantNet as a leaf and keeps its API key server-side", 
   assert.equal(matches[0].plant, "Pancar / Pazı (Beetroot / Swiss chard)");
 });
 
+test("falls back to DNS-over-HTTPS and preserves the TLS hostname after system DNS fails", async () => {
+  let resolvedHostname;
+  let request;
+  const matches = await identifyPlant({
+    imageBuffer: Buffer.from("sample image"),
+    mimeType: "image/jpeg",
+    apiKey: "test-secret",
+    fetchImpl: async () => {
+      throw Object.assign(new TypeError("fetch failed"), {
+        cause: Object.assign(new Error("lookup EAI_AGAIN"), { code: "EAI_AGAIN" }),
+      });
+    },
+    resolveAddress: async (hostname) => {
+      resolvedHostname = hostname;
+      return "193.51.117.162";
+    },
+    requestImpl: async (options) => {
+      request = options;
+      assert.equal(await options.resolveAddress(), "193.51.117.162");
+      return { ok: true, status: 200, json: async () => beetResponse };
+    },
+  });
+
+  assert.equal(resolvedHostname, "my-api.plantnet.org");
+  assert.equal(request.url.hostname, "my-api.plantnet.org");
+  assert.equal(request.url.searchParams.get("api-key"), "test-secret");
+  assert.equal(matches[0].plant, "Pancar / Pazı (Beetroot / Swiss chard)");
+});
+
+test("resolves the PlantNet hostname using Google's DNS-over-HTTPS response", async () => {
+  let requestedUrl;
+  await identifyPlant({
+    imageBuffer: Buffer.from("sample image"),
+    mimeType: "image/jpeg",
+    apiKey: "test-secret",
+    fetchImpl: async (url) => {
+      requestedUrl = new URL(url);
+      if (requestedUrl.hostname === "dns.google") {
+        return {
+          ok: true,
+          json: async () => ({
+            Answer: [
+              { type: 5, data: "senonches.cirad.fr." },
+              { type: 1, data: "193.51.117.162" },
+            ],
+          }),
+        };
+      }
+      throw Object.assign(new TypeError("fetch failed"), {
+        cause: Object.assign(new Error("lookup EAI_AGAIN"), { code: "EAI_AGAIN" }),
+      });
+    },
+    requestImpl: async ({ resolveAddress }) => {
+      assert.equal(await resolveAddress(), "193.51.117.162");
+      return { ok: true, status: 200, json: async () => beetResponse };
+    },
+  });
+
+  assert.equal(requestedUrl.hostname, "dns.google");
+  assert.equal(requestedUrl.searchParams.get("name"), "my-api.plantnet.org");
+  assert.equal(requestedUrl.searchParams.get("type"), "A");
+});
+
 test("reports missing API credentials without making an upstream request", async () => {
   await assert.rejects(
     identifyPlant({
