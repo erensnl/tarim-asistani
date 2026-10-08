@@ -3,7 +3,7 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseModelResult } from "./analysis-parser.mjs";
-import { formatPlantReference } from "./plant-reference.mjs";
+import { formatPlantReference, plantReference } from "./plant-reference.mjs";
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
@@ -13,7 +13,7 @@ const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 app.get("/health", (_request, response) => {
-  response.json({ status: "ok" });
+  response.json({ status: "ok", referenceCrops: plantReference.length });
 });
 
 app.use(express.json({ limit: "14mb" }));
@@ -60,9 +60,11 @@ LANGUAGE: Every explanation, symptom, and care suggestion shown to the user MUST
 
 Identify the most likely plant, not only whether it is diseased. Compare the actual leaf shape, simple vs compound structure, leaflet count and arrangement, edge, veins, base, petiole, texture, and visible stem context. Do not identify a species from generic traits such as "green oval leaf." Do not let the reference list restrict you: if another species fits better, identify it and explain the visible evidence.
 
+CRITICAL VEIN AND BLADE CHECK: Before naming a crop, establish from the image whether the leaf is a broad blade with branching net-like veins and a petiole (typical of beetroot/pancar) or a long, narrow strap-shaped monocot leaf with parallel veins and a sheathing base (typical of leek/pırasa, onion, and garlic). These are not interchangeable. Never call a broad, net-veined beet leaf a leek, or a strap-shaped parallel-veined Allium leaf a beet. If vein pattern, whole leaf shape, or leaf attachment cannot be seen clearly, do not guess: use "Bitki türü belirlenemedi", scientificName "Belirlenemedi", confidence at or below 25, and ask for a clear photo of the whole leaf and its attachment. Do not claim a cultivar/variety from a leaf when varieties cannot be distinguished visually.
+
 Only return other plant possibilities when there is real uncertainty AND the image contains a specific visible feature that supports each candidate. For each candidate, state that image feature as evidence. Do not add familiar plants as generic alternatives, do not repeat the same few alternatives for unrelated photos, and do not return a candidate based only on vague words like "oval leaf" or "green leaf." If no other species has a distinctive visible match, return an empty alternatives array. Alternatives must be selected from the reference list below.
 
-Common cultivated plants and concise visual comparison reference:
+Common cultivated plants and concise visual comparison reference (visual guidance only; not a trained specimen database):
 ${formatPlantReference()}
 
 Put a Latin scientific name in scientificName only when reasonably supported by the image; otherwise use "Belirlenemedi". Do not invent a disease. confidence is a rough visual confidence score, not a calibrated probability; keep it at or below 55 when the species is ambiguous, only a partial leaf is visible, or the image is unclear. Use no pesticides, medicine, dosages, or treatment prescriptions. Give 2-3 short, low-risk observation/care suggestions in Turkish. Keep description concise (one or two sentences).
@@ -84,7 +86,7 @@ JSON schema: {"plant":"Türkçe yaygın ad (English common name)","scientificNam
         messages: [
           {
             role: "system",
-            content: "Follow all user instructions. All prose intended for the user must be Turkish. Never invent alternative plant identities; each alternative needs specific visible evidence from the image. Return only the requested JSON object.",
+            content: "Follow all user instructions. All prose intended for the user must be Turkish. Compare monocot parallel veins and strap-shaped leaves against dicot branching net-like veins and broad blades carefully. Never guess a species when distinguishing features are absent; report the plant as undetermined. Never invent alternative plant identities; each alternative needs specific visible evidence from the image. Do not infer cultivar from generic leaf shape. Return only the requested JSON object.",
           },
           {
             role: "user",

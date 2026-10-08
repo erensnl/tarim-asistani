@@ -47,9 +47,9 @@ Render'ın ücretsiz servisi bir süre istek almadığında uykuya geçebilir; y
 - Tarayıcıda dosya türü ve 10 MB boyut kontrolü.
 - API anahtarı yalnızca Express sunucusunda kalır; React uygulamasına gönderilmez.
 - Sunucu görseli NVIDIA'nın OpenAI uyumlu `integrate.api.nvidia.com/v1/chat/completions` API'sine iletir.
-- Varsayılan görsel modeli `meta/llama-3.2-90b-vision-instruct` olarak ayarlanmıştır. Sunucu, Türkiye'de yaygın yaklaşık 39 kültür bitkisinin Türkçe/İngilizce adlarını, Latince adlarını ve ayırt edici yaprak özelliklerini modele referans olarak verir; fındık, tütün ve yer fıstığı da listededir.
+- Varsayılan görsel modeli `meta/llama-3.2-90b-vision-instruct` olarak ayarlanmıştır. Sunucu 53 kültür bitkisi için Türkçe/İngilizce ad, Latince ad ve görsel ayırt etme ipuçlarını modele referans olarak verir; liste eğitim verisi değildir ve her çeşit için örnek fotoğraflar içermez.
 - Alternatif bitki adları yalnızca katalogda varsa ve yanlarında fotoğraftan gözlemlenebilir Türkçe kanıt sunulmuşsa gösterilir. Eski biçimdeki gerekçesiz metin alternatifleri gizlenir; İngilizce açıklamalar sonuç ekranında Türkçe güvenli açıklamayla değiştirilir.
-- Bu referans liste modele yeniden eğitim yaptırmaz ve dünyadaki bütün bitkileri kapsamaz. Görsel modeli fotoğraftaki ayrıntılara göre tahminde bulunur; ayırt edici özellikler görünmüyorsa belirsizliğini belirtmelidir. Bütün bitkileri güvenilir biçimde tanımak için etiketli fotoğraflarla eğitilmiş/ince ayar yapılmış bir model veya özelleşmiş bitki tanıma servisi gerekir.
+- Bu referans liste modele yeniden eğitim yaptırmaz ve Türkiye'de yetiştirilen bütün bitkileri veya çeşitlerini kapsamaz. Pancar/pazı gibi aynı türe ait çeşitleri yalnızca yapraktan her zaman ayırmak mümkün değildir; yaprak fotoğrafı tüm çeşitler için %0 hata garantisi veremez. Net görüntü ve ayırt edici özellik yoksa uygulama türü belirsiz göstermelidir. Daha geniş doğruluk için uzmanlarca doğrulanmış, farklı yetiştirme koşullarını ve çeşitleri kapsayan etiketli fotoğraf verisiyle değerlendirme ve gerekirse modele ince ayar gerekir.
 - Sunucu, model yanıtını doğrular ve biçimini arayüze uygun hale getirir. API anahtarı yoksa, geçersizse, istek sınırı aşılırsa veya servis yanıt vermezse kullanıcıya hata gösterilir.
 
 ## Gizlilik ve güvenli kullanım

@@ -99,6 +99,50 @@ test("provides hazelnut and a broad Turkish crop reference to the model", () => 
   assert.ok(plantReference.length >= 35);
 });
 
+test("distinguishes beet leaves from leek leaves by vein and blade structure", () => {
+  const beet = plantReference.find(([turkish]) => turkish === "Pancar");
+  const leek = plantReference.find(([turkish]) => turkish === "Pırasa");
+  assert.match(beet[3], /net-like veins/i);
+  assert.match(beet[3], /not long, narrow/i);
+  assert.match(leek[3], /parallel veins/i);
+  assert.match(leek[3], /sheathing base/i);
+  assert.match(formatPlantReference(), /Pancar \(Beetroot\)/);
+  assert.match(formatPlantReference(), /Pırasa \(Leek\)/);
+});
+
+test("rejects a leek label paired with beet's scientific species", () => {
+  const result = parseModelResult(JSON.stringify({
+    plant: "Pırasa (Leek)",
+    scientificName: "Beta vulgaris",
+    condition: "Belirti belirlenemedi",
+    confidence: 96,
+    alternatives: [{ name: "Pancar (Beetroot)", evidence: "Yaprak geniş." }],
+    description: "Yaprak geniş ve damarlı.",
+    steps: ["Yaprağı gözlemleyin."],
+  }));
+
+  assert.equal(result.plant, "Bitki türü belirlenemedi");
+  assert.equal(result.scientificName, "Belirlenemedi");
+  assert.equal(result.confidence, null);
+  assert.deepEqual(result.alternatives, []);
+  assert.match(result.description, /birbiriyle uyuşmadığı için/);
+});
+
+test("does not falsely reject a beet label with its matching scientific species", () => {
+  const result = parseModelResult(JSON.stringify({
+    plant: "Pancar (Beetroot)",
+    scientificName: "Beta vulgaris subsp. vulgaris",
+    condition: "Belirti belirlenemedi",
+    confidence: 72,
+    alternatives: [],
+    description: "Yapraktaki damarlanma ağı görülüyor.",
+    steps: ["Yaprağı gözlemleyin."],
+  }));
+
+  assert.equal(result.plant, "Pancar (Beetroot)");
+  assert.equal(result.confidence, 72);
+});
+
 test("only displays catalogued alternative plants with explicit Turkish image evidence", () => {
   assert.deepEqual(normalizeAlternatives([
     { name: "Tütün (Tobacco)", evidence: "Yaprak gövdeye tek tek bağlanıyor ve geniş." },

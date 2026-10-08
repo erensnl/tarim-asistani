@@ -37,20 +37,57 @@ function normalizeModelResult(parsed) {
     return null;
   }
 
+  const scientificName = cleanModelText(parsed.scientificName).slice(0, 120);
+  const plantIdentity = normalizePlantIdentity(parsed.plant, scientificName);
   return {
-    plant: normalizePlantName(parsed.plant).slice(0, 120),
-    scientificName: cleanModelText(parsed.scientificName).slice(0, 120),
+    plant: plantIdentity.conflicts ? "Bitki türü belirlenemedi" : normalizePlantName(parsed.plant).slice(0, 120),
+    scientificName: plantIdentity.conflicts ? "Belirlenemedi" : scientificName,
     condition: ensureTurkish(cleanModelText(parsed.condition), "Belirti belirlenemedi").slice(0, 160),
-    confidence: typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
+    confidence: !plantIdentity.conflicts && typeof parsed.confidence === "number" && Number.isFinite(parsed.confidence)
       ? Math.max(0, Math.min(100, Math.round(parsed.confidence)))
       : null,
-    description: ensureTurkish(
+    description: plantIdentity.conflicts
+      ? "Modelin verdiği bitki adı ile bilimsel adı birbiriyle uyuşmadığı için bitki türü belirlenemedi. Daha net, yaprağın tamamını ve gövdeye bağlandığı yeri gösteren bir fotoğraf deneyin."
+      : ensureTurkish(
       cleanModelText(parsed.description),
       "Yaprak özellikleri görselden tahmin edilmiştir; bu sonuç uzman değerlendirmesiyle doğrulanmalıdır.",
     ).slice(0, 600),
-    alternatives: normalizeAlternatives(parsed.alternatives),
+    alternatives: plantIdentity.conflicts ? [] : normalizeAlternatives(parsed.alternatives),
     steps: safeSteps(parsed.steps.filter((step) => !containsEnglishExplanation(step))),
   };
+}
+
+function normalizePlantIdentity(plantName, scientificName) {
+  const normalizedPlantName = normalizePlantReferenceName(cleanModelText(plantName));
+  const candidates = plantReference.filter(([turkish, english]) =>
+    normalizedPlantName === normalizePlantReferenceName(turkish) ||
+    normalizedPlantName === normalizePlantReferenceName(english) ||
+    normalizedPlantName === normalizePlantReferenceName(`${turkish} (${english})`),
+  );
+  const scientificSpecies = getCataloguedScientificSpecies(scientificName);
+  if (candidates.length === 0 || !scientificSpecies) return { conflicts: false };
+  return {
+    conflicts: !candidates.some(([, , scientific]) =>
+      getScientificSpeciesName(scientific) === scientificSpecies,
+    ),
+  };
+}
+
+function getCataloguedScientificSpecies(value) {
+  const normalized = getScientificSpeciesName(value);
+  if (normalized.split(" ").length !== 2) return "";
+  return plantReference.some(([, , scientific]) => getScientificSpeciesName(scientific) === normalized)
+    ? normalized
+    : "";
+}
+
+function getScientificSpeciesName(value) {
+  return cleanModelText(value)
+    .replace(/\s+(?:subsp\.?|ssp\.?|var\.?|f\.?)\s+.+$/i, "")
+    .toLocaleLowerCase("en")
+    .split(/\s+/)
+    .slice(0, 2)
+    .join(" ");
 }
 
 function parseHeadedText(content) {
