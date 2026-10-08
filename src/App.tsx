@@ -10,6 +10,7 @@ type AnalysisResult = {
   alternatives?: Array<{ name: string; evidence: string }>;
   description: string;
   steps: string[];
+  healthAssessmentAvailable: boolean;
 };
 
 function LeafMark({ className = "" }: { className?: string }) {
@@ -187,7 +188,7 @@ function App() {
         <section className={`api-settings ${apiBaseUrl ? "" : "api-settings-missing"}`} aria-label="API sunucusu ayarı">
           <div className="api-settings-copy">
             <strong>{apiBaseUrl ? "API sunucusu ayarlandı" : "API sunucusu adresi gerekli"}</strong>
-            <p>Analiz için NVIDIA anahtarını güvenli biçimde saklayan sunucunuzun HTTPS adresini girin.</p>
+            <p>Bitki tanıma anahtarı ve varsa hastalık değerlendirme anahtarı sunucuda güvenle saklanır.</p>
           </div>
           <div className="api-settings-controls">
             <label className="visually-hidden" htmlFor="api-base-url">HTTPS API sunucusu adresi</label>
@@ -239,7 +240,7 @@ function App() {
               <span className="step-label">01 — FOTOĞRAFINI EKLE</span>
               <h2>Yaprağınız nasıl görünüyor?</h2>
             </div>
-            <span className="privacy-note"><span aria-hidden="true">ⓘ</span> Analiz için NVIDIA'ya gönderilir</span>
+            <span className="privacy-note"><span aria-hidden="true">ⓘ</span> Bitki tanıma Pl@ntNet ile yapılır; belirti değerlendirmesinde NVIDIA kullanılabilir</span>
           </div>
 
           <div className={`upload-card ${isDragging ? "is-dragging" : ""} ${imageUrl ? "has-image" : ""}`}
@@ -301,7 +302,7 @@ function App() {
 
           <div className="action-row">
             <p className="action-hint">
-              {imageUrl ? "Fotoğrafınız hazır. NVIDIA yapay zekâsıyla analiz edin." : "Başlamak için yaprak fotoğrafınızı yükleyin."}
+              {imageUrl ? "Fotoğrafınız hazır. Bitki türünü Pl@ntNet ile tanıyın." : "Başlamak için yaprak fotoğrafınızı yükleyin."}
             </p>
             <button className="button button-primary" type="button" onClick={analyzeImage} disabled={!imageUrl || isAnalyzing}>
               {isAnalyzing ? <><span className="spinner" /> Analiz ediliyor…</> : <>Yapay zekâyla incele <span aria-hidden="true">→</span></>}
@@ -311,7 +312,7 @@ function App() {
           {isAnalyzing && (
             <div className="loading-card" role="status">
               <span className="spinner spinner-green" />
-              <div><strong>Yaprak fotoğrafı analiz ediliyor</strong><p>NVIDIA görsel modeli bitkiyi ve yaprak belirtilerini inceliyor…</p></div>
+              <div><strong>Yaprak fotoğrafı analiz ediliyor</strong><p>Pl@ntNet bitki türünü tanıyor; hastalık değerlendirmesi etkinse NVIDIA belirtileri inceliyor…</p></div>
             </div>
           )}
 
@@ -319,25 +320,29 @@ function App() {
             <section className="result-section" id="analysis-result" aria-labelledby="result-heading">
               <div className="result-heading">
                 <div>
-                  <span className="step-label">02 — YAPAY ZEKÂ ANALİZİ</span>
+                  <span className="step-label">02 — PL@NTNET BİTKİ TANIMA</span>
                   <h2 id="result-heading">Bitkiniz hakkında</h2>
                 </div>
                 <span className="demo-pill"><span aria-hidden="true">ⓘ</span> Yapay zekâ tahmini · Kesin teşhis değildir</span>
               </div>
               <div className="result-card">
-                <div className="demo-notice"><strong>Bilgilendirme:</strong> Bu sonuç görselden üretilmiş yapay zekâ tahminidir; kesin teşhis veya doğrulanmış hastalık olasılığı değildir. Karar vermeden önce bir ziraat uzmanına danışın.</div>
+                <div className="demo-notice"><strong>Bilgilendirme:</strong> Bitki adı Pl@ntNet’in görsel eşleşmesidir; tür ve çeşit için kesin doğrulama değildir. Hastalık değerlendirmesi etkinse NVIDIA tarafından ayrıca üretilen bir ön değerlendirmedir; kesin teşhis yerine geçmez.</div>
                 <div className="result-grid">
                   <div className="plant-block">
                     <span className="result-icon" aria-hidden="true"><LeafMark /></span>
-                    <div><span className="result-label">TÜRKÇE ADI (İNGİLİZCE ADI)</span><h3>{result.plant}</h3><span className="scientific-name">{hasScientificName ? result.scientificName : "Bilimsel türü henüz belirlenemedi"}</span></div>
+                    <div>
+                      <span className="result-label">PL@NTNET BİTKİ EŞLEŞMESİ</span>
+                      <h3>{result.plant}</h3>
+                      <span className="scientific-name">{hasScientificName ? result.scientificName : "Bilimsel türü henüz belirlenemedi"}</span>
+                    </div>
                   </div>
                   <div className="condition-block">
-                    <span className="result-label">OLASI BELİRTİ</span>
+                    <span className="result-label">{result.healthAssessmentAvailable ? "NVIDIA ÖN DEĞERLENDİRMESİ · OLASI BELİRTİ" : "HASTALIK DEĞERLENDİRMESİ"}</span>
                     <h3>{result.condition}</h3>
                     <p>{result.description}</p>
                     {result.alternatives && result.alternatives.length > 0 && (
                       <div className="alternative-list">
-                        <strong>Görsel kanıtı olan diğer olasılıklar</strong>
+                        <strong>Pl@ntNet’in diğer görsel eşleşmeleri</strong>
                         <ul>{result.alternatives.map((alternative) => (
                           <li key={alternative.name}><b>{alternative.name}</b> — {alternative.evidence}</li>
                         ))}</ul>
@@ -345,9 +350,9 @@ function App() {
                     )}
                   </div>
                   <div className="confidence-block">
-                    <span className="result-label">GÖRSEL TAHMİN DÜZEYİ</span>
+                    <span className="result-label">PL@NTNET EŞLEŞME SKORU</span>
                     <div className="confidence-number">{result.confidence === null ? "—" : <>{result.confidence}<span>%</span></>}</div>
-                    <span className="confidence-caption">{result.confidence === null ? "Model güven düzeyi bildirmedi" : "Modelin kaba tahmini; doğrulanmış olasılık değildir"}</span>
+                    <span className="confidence-caption">{result.confidence === null ? "Eşleşme skoru alınamadı" : "Benzerlik puanıdır; doğrulanmış olasılık değildir"}</span>
                   </div>
                 </div>
                 <div className="steps-block">

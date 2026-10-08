@@ -9,6 +9,10 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: PLANTNET_API_KEY
+        sync: false
+      - key: PLANTNET_PROJECT
+        value: all
       - key: NVIDIA_API_KEY
         sync: false
       - key: NVIDIA_MODEL

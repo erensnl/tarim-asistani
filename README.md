@@ -1,12 +1,13 @@
 # Tarım Asistanı
 
-Türkçe bitki fotoğrafı yükleme ve NVIDIA görsel yapay zekâsıyla bitki sağlığı değerlendirmesi sunan React + TypeScript uygulaması.
+Türkçe bitki fotoğrafı yükleme ve Pl@ntNet ile bitki türü tanıma sunan React + TypeScript uygulaması. NVIDIA anahtarı yapılandırılmışsa, yaprak belirtileri için ayrı ve ihtiyatlı bir ön değerlendirme de yapılır.
 
 ## Kurulum
 
-1. NVIDIA API anahtarınızı [NVIDIA Build](https://build.nvidia.com/) üzerinden oluşturun.
-2. Proje kökünde `.env.example` dosyasını `.env` adıyla kopyalayın ve `NVIDIA_API_KEY` alanına anahtarınızı girin.
-3. Bağımlılıkları kurup geliştirme sunucularını başlatın:
+1. [Pl@ntNet API sayfasından](https://my.plantnet.org/) hesap açıp API anahtarı alın.
+2. Proje kökünde `.env.example` dosyasını `.env` adıyla kopyalayın ve `PLANTNET_API_KEY` alanına anahtarınızı girin.
+3. İsteğe bağlı hastalık ön değerlendirmesi için [NVIDIA Build](https://build.nvidia.com/) üzerinden API anahtarı alın ve `NVIDIA_API_KEY` alanına girin.
+4. Bağımlılıkları kurup geliştirme sunucularını başlatın:
 
 ```bash
 npm install
@@ -15,7 +16,7 @@ npm run dev
 
 Vite arayüzü `http://localhost:5173`, API sunucusu `http://localhost:3001` adresinde açılır. Vite `/api` isteklerini sunucuya yönlendirir.
 
-Üretim derlemesi için `npm run build`; üretim sunucusunu başlatmak için `npm start` komutunu çalıştırın. `PORT` ve isteğe bağlı `NVIDIA_MODEL` değerleri `.env` dosyasında değiştirilebilir.
+Üretim derlemesi için `npm run build`; üretim sunucusunu başlatmak için `npm start` komutunu çalıştırın. `PORT`, isteğe bağlı `PLANTNET_PROJECT` (varsayılan `all`) ve `NVIDIA_MODEL` değerleri `.env` dosyasında değiştirilebilir.
 
 ## Mobil uygulama
 
@@ -28,7 +29,7 @@ Android debug APK'sını `artifacts/tarim-asistani-debug.apk` konumundan indirip
 Mobil uygulamanın analiz yapabilmesi için uygulama sahibinin bir defa backend'i internette yayımlaması gerekir; uygulama kullanıcıları kendilerine ait sunucu açmaz. Hazır dağıtım ayarı [Render Blueprint](render.yaml) olarak eklenmiştir. Yayımlamak için:
 
 1. [Render Blueprint oluşturma sayfasını](https://dashboard.render.com/blueprint/new?repo=https%3A%2F%2Fgithub.com%2Ferensnl%2Ftarim-asistani) açıp GitHub hesabınızla giriş yapın ve **Apply** ile `tarim-asistani-api` servisini oluşturun.
-2. Render sizden `NVIDIA_API_KEY` değerini isteyecek. NVIDIA Build'den aldığınız anahtarı bu gizli alana girin; anahtarı kaynak koda veya mobil uygulamaya eklemeyin.
+2. Render sizden zorunlu `PLANTNET_API_KEY` değerini isteyecek. [Pl@ntNet API hesabınızdan](https://my.plantnet.org/) aldığınız anahtarı bu gizli alana girin. Hastalık ön değerlendirmesi de istiyorsanız `NVIDIA_API_KEY` değerini Render Dashboard'da ayrıca tanımlayın. Anahtarları kaynak koda veya mobil uygulamaya eklemeyin.
 3. İlk dağıtım tamamlanıp health check başarılı olduktan sonra Render Dashboard'da servisi açın. Bu proje için API adresi `https://tarim-asistani-api.onrender.com` olarak ayarlanmıştır.
 4. Güncel APK bu adresle yapılandırılmıştır. Farklı bir adres kullanırsanız uygulamadaki **API sunucusu adresi** alanına girip kaydedebilir veya yeni APK derlerken:
 
@@ -39,19 +40,19 @@ npm run mobile:sync
 npm run mobile:android
 ```
 
-Render'ın ücretsiz servisi bir süre istek almadığında uykuya geçebilir; yeniden açılması ilk analiz isteğini geciktirebilir. `VITE_` ile başlayan değişkenler mobil istemci paketine eklenir; NVIDIA anahtarını hiçbir zaman bu şekilde eklemeyin. Android Studio'dan cihaz/emülatör seçerek çalıştırabilirsiniz. `npm run mobile:ios` komutu iOS projesini Xcode'da açar (macOS gerekir). `npm run mobile:sync` web uygulamasını derleyip Capacitor platformlarına kopyalar. Mobil uygulama kamera ve galeriden yaprak fotoğrafı seçebilir.
+Render'ın ücretsiz servisi bir süre istek almadığında uykuya geçebilir; yeniden açılması ilk analiz isteğini geciktirebilir. `VITE_` ile başlayan değişkenler mobil istemci paketine eklenir; Pl@ntNet veya NVIDIA API anahtarlarını hiçbir zaman bu şekilde eklemeyin. Android Studio'dan cihaz/emülatör seçerek çalıştırabilirsiniz. `npm run mobile:ios` komutu iOS projesini Xcode'da açar (macOS gerekir). `npm run mobile:sync` web uygulamasını derleyip Capacitor platformlarına kopyalar. Mobil uygulama kamera ve galeriden yaprak fotoğrafı seçebilir.
 
 ## Analiz akışı
 
 - JPG, PNG ve WEBP görseli seçme, sürükleyip bırakma, mobil kamerayla çekme ve önizleme.
 - Tarayıcıda dosya türü ve 10 MB boyut kontrolü.
 - API anahtarı yalnızca Express sunucusunda kalır; React uygulamasına gönderilmez.
-- Sunucu görseli NVIDIA'nın OpenAI uyumlu `integrate.api.nvidia.com/v1/chat/completions` API'sine iletir.
-- Varsayılan görsel modeli `meta/llama-3.2-90b-vision-instruct` olarak ayarlanmıştır. Sunucu 53 kültür bitkisi için Türkçe/İngilizce ad, Latince ad ve görsel ayırt etme ipuçlarını modele referans olarak verir; liste eğitim verisi değildir ve her çeşit için örnek fotoğraflar içermez.
-- Alternatif bitki adları yalnızca katalogda varsa ve yanlarında fotoğraftan gözlemlenebilir Türkçe kanıt sunulmuşsa gösterilir. Eski biçimdeki gerekçesiz metin alternatifleri gizlenir; İngilizce açıklamalar sonuç ekranında Türkçe güvenli açıklamayla değiştirilir.
-- Bu referans liste modele yeniden eğitim yaptırmaz ve Türkiye'de yetiştirilen bütün bitkileri veya çeşitlerini kapsamaz. Pancar/pazı gibi aynı türe ait çeşitleri yalnızca yapraktan her zaman ayırmak mümkün değildir; yaprak fotoğrafı tüm çeşitler için %0 hata garantisi veremez. Net görüntü ve ayırt edici özellik yoksa uygulama türü belirsiz göstermelidir. Daha geniş doğruluk için uzmanlarca doğrulanmış, farklı yetiştirme koşullarını ve çeşitleri kapsayan etiketli fotoğraf verisiyle değerlendirme ve gerekirse modele ince ayar gerekir.
-- Sunucu, model yanıtını doğrular ve biçimini arayüze uygun hale getirir. API anahtarı yoksa, geçersizse, istek sınırı aşılırsa veya servis yanıt vermezse kullanıcıya hata gösterilir.
+- Bitki tanıma için sunucu fotoğrafı Pl@ntNet `v2/identify` servisine `leaf` organı olarak iletir. Tanınan bilimsel ad katalogdaki Türkçe/İngilizce adla eşleşiyorsa bu ad gösterilir; katalog dışı bitkilerde bilimsel ad kullanılır.
+- Diğer Pl@ntNet sonuçları eşleşme puanlarıyla gösterilir. Bu puanlar doğrulanmış olasılık değildir; API'nin tür teşhisi her görüntüde doğru olmayabilir.
+- NVIDIA anahtarı ayarlıysa, aynı görsel Pl@ntNet'in belirlediği bitki kimliğiyle birlikte yalnızca yaprak belirtilerini değerlendirmek için NVIDIA'ya da gönderilir. NVIDIA anahtarı yoksa tür tanıma çalışmaya devam eder; hastalık değerlendirmesi kullanılamaz olarak gösterilir.
+- Pl@ntNet veya NVIDIA çıktısı kesin teşhis sayılmaz. Bitki kataloğu 53 kültür bitkisinin ad ve görsel ipuçlarını içerir; bu liste eğitim verisi değildir ve Türkiye'de yetiştirilen bütün bitkileri veya çeşitleri kapsamaz. Pancar/pazı gibi aynı türe ait çeşitler yalnızca yapraktan her zaman ayırt edilemez; %0 hata garantisi verilemez. Daha geniş doğruluk için uzmanlarca doğrulanmış etiketli görsellerle değerlendirme ve gerekirse modele ince ayar gerekir.
+- Pl@ntNet anahtarı eksik/geçersizse, istek sınırı aşılırsa veya servis yanıt vermezse kullanıcıya anlaşılır hata gösterilir. Hastalık servisi kullanılamazsa bitki tanıma sonucu yine gösterilir.
 
 ## Gizlilik ve güvenli kullanım
 
-Analiz istendiğinde yüklenen görsel NVIDIA API'sine gönderilir; bu işlem arayüzde kullanıcıya bildirilir. Anahtarı `.env` içinde saklayın ve `.env` dosyasını paylaşmayın. Uygulama, NVIDIA'dan gelen çıktıyı kesin tanı olarak değil yapay zekâ tahmini olarak sunar; güven düzeyi doğrulanmış olasılık değildir. Modelden ilaç veya pestisit reçetesi vermemesi istenir; bitki sağlığı kararlarında uzman görüşü alınmalıdır.
+Analiz istendiğinde fotoğraf Pl@ntNet'e gönderilir; `NVIDIA_API_KEY` sunucuda yapılandırılmışsa aynı fotoğraf belirtiler için ayrıca NVIDIA'ya da iletilir. Anahtarları `.env` içinde veya Render'ın gizli ortam değişkenlerinde saklayın; `.env` dosyasını paylaşmayın. Uygulama eşleşme puanını doğrulanmış olasılık olarak sunmaz; hastalık ön değerlendirmesi kesin teşhis değildir. Modelden ilaç veya pestisit reçetesi vermemesi istenir; bitki sağlığı kararlarında uzman görüşü alınmalıdır.

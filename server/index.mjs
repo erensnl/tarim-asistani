@@ -3,7 +3,8 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseModelResult } from "./analysis-parser.mjs";
-import { formatPlantReference, plantReference } from "./plant-reference.mjs";
+import { plantReference } from "./plant-reference.mjs";
+import { identifyPlant } from "./plantnet.mjs";
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
@@ -13,7 +14,12 @@ const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 app.get("/health", (_request, response) => {
-  response.json({ status: "ok", referenceCrops: plantReference.length });
+  response.json({
+    status: "ok",
+    referenceCrops: plantReference.length,
+    plantNetConfigured: Boolean(process.env.PLANTNET_API_KEY),
+    diseaseAssessmentConfigured: Boolean(process.env.NVIDIA_API_KEY),
+  });
 });
 
 app.use(express.json({ limit: "14mb" }));
@@ -32,13 +38,6 @@ app.use("/api", (request, response, next) => {
 });
 
 app.post("/api/analyze", async (request, response) => {
-  const apiKey = process.env.NVIDIA_API_KEY;
-  if (!apiKey) {
-    return response.status(503).json({
-      error: "NVIDIA API anahtarı ayarlanmamış. Proje klasöründe .env dosyası oluşturup NVIDIA_API_KEY değerini ekleyin.",
-    });
-  }
-
   const { imageDataUrl } = request.body ?? {};
   if (typeof imageDataUrl !== "string") {
     return response.status(400).json({ error: "Analiz edilecek görsel bulunamadı." });
@@ -54,22 +53,72 @@ app.post("/api/analyze", async (request, response) => {
     return response.status(400).json({ error: "Görsel boş veya 10 MB sınırını aşıyor." });
   }
 
-  const prompt = `Analyze the actual plant/leaf in the supplied image. Return only one valid JSON object, with no Markdown.
+  try {
+    const matches = await identifyPlant({ imageBuffer, mimeType: match[1] });
+    const healthAssessment = await assessPlantHealth(imageDataUrl, matches[0]);
+    const alternatives = matches.slice(1).map((plant) => ({
+      name: plant.plant,
+      evidence: `Pl@ntNet eşleşme skoru: ${plant.score}%.`,
+    }));
+    const result = {
+      plant: matches[0].plant,
+      scientificName: matches[0].scientificName,
+      condition: healthAssessment?.condition ?? "Hastalık değerlendirmesi yapılamadı",
+      confidence: matches[0].score,
+      alternatives,
+      description: healthAssessment?.description ??
+        `Bitki türü Pl@ntNet ile eşleştirildi (${matches[0].scientificName}). Hastalık değerlendirmesi şu anda alınamadı; belirtiler sürerse yerel bir ziraat uzmanına danışın.`,
+      steps: healthAssessment?.steps ?? [
+        "Belirtilerin değişimini gözlemleyip not edin.",
+        "Belirti artarsa yerel bir ziraat uzmanına danışın.",
+      ],
+      healthAssessmentAvailable: Boolean(healthAssessment),
+    };
 
-LANGUAGE: Every explanation, symptom, and care suggestion shown to the user MUST be written in natural Turkish. The plant name must be Turkish first and the common English name in parentheses. Never write the explanation or recommendations in English.
+    return response.json({ result, identificationProvider: "Pl@ntNet" });
+  } catch (error) {
+    if (error.code === "missing_api_key") {
+      return response.status(503).json({
+        error: "Sunucuda PLANTNET_API_KEY ayarlanmamış. Render ortam değişkenlerine Pl@ntNet API anahtarını ekleyin.",
+      });
+    }
+    if (error.code === "no_match") {
+      return response.status(422).json({
+        error: "Pl@ntNet fotoğrafta güvenilir bir bitki eşleşmesi bulamadı. Yaprağın tamamını net ve aydınlık gösteren başka bir fotoğraf deneyin.",
+      });
+    }
+    if (error.status === 401 || error.status === 403) {
+      console.error("Pl@ntNet API rejected the server credentials.");
+      return response.status(502).json({
+        error: "Pl@ntNet API anahtarı geçersiz veya proje erişim izni bulunmuyor.",
+      });
+    }
+    if (error.status === 429) {
+      console.error("Pl@ntNet API rate limit reached.");
+      return response.status(429).json({
+        error: "Pl@ntNet kullanım sınırına ulaşıldı. Biraz sonra tekrar deneyin.",
+      });
+    }
+    if (error.code === "timeout" || error.name === "TimeoutError" || error.name === "AbortError") {
+      console.error("Pl@ntNet identification request timed out.");
+      return response.status(504).json({
+        error: "Pl@ntNet analizi zaman aşımına uğradı. Lütfen tekrar deneyin.",
+      });
+    }
+    console.error("Plant identification request failed:", error.message);
+    return response.status(502).json({
+      error: "Pl@ntNet bitki tanıma servisine bağlanılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
+    });
+  }
+});
 
-Identify the most likely plant, not only whether it is diseased. Compare the actual leaf shape, simple vs compound structure, leaflet count and arrangement, edge, veins, base, petiole, texture, and visible stem context. Do not identify a species from generic traits such as "green oval leaf." Do not let the reference list restrict you: if another species fits better, identify it and explain the visible evidence.
+async function assessPlantHealth(imageDataUrl, plant) {
+  const apiKey = process.env.NVIDIA_API_KEY;
+  if (!apiKey) return null;
 
-CRITICAL VEIN AND BLADE CHECK: Before naming a crop, establish from the image whether the leaf is a broad blade with branching net-like veins and a petiole (typical of beetroot/pancar) or a long, narrow strap-shaped monocot leaf with parallel veins and a sheathing base (typical of leek/pırasa, onion, and garlic). These are not interchangeable. Never call a broad, net-veined beet leaf a leek, or a strap-shaped parallel-veined Allium leaf a beet. If vein pattern, whole leaf shape, or leaf attachment cannot be seen clearly, do not guess: use "Bitki türü belirlenemedi", scientificName "Belirlenemedi", confidence at or below 25, and ask for a clear photo of the whole leaf and its attachment. Do not claim a cultivar/variety from a leaf when varieties cannot be distinguished visually.
+  const prompt = `The plant identity has already been determined by Pl@ntNet as ${plant.plant} (${plant.scientificName}). Do not identify or rename the plant. Analyze only visible leaf health symptoms in the supplied image. If no disease is clearly supported, say that symptoms cannot be determined. Do not invent a pathogen or certainty. Write all user-facing text in natural Turkish. Give only low-risk observation suggestions; never recommend pesticides, medicines, dosages, or treatment chemicals.
 
-Only return other plant possibilities when there is real uncertainty AND the image contains a specific visible feature that supports each candidate. For each candidate, state that image feature as evidence. Do not add familiar plants as generic alternatives, do not repeat the same few alternatives for unrelated photos, and do not return a candidate based only on vague words like "oval leaf" or "green leaf." If no other species has a distinctive visible match, return an empty alternatives array. Alternatives must be selected from the reference list below.
-
-Common cultivated plants and concise visual comparison reference (visual guidance only; not a trained specimen database):
-${formatPlantReference()}
-
-Put a Latin scientific name in scientificName only when reasonably supported by the image; otherwise use "Belirlenemedi". Do not invent a disease. confidence is a rough visual confidence score, not a calibrated probability; keep it at or below 55 when the species is ambiguous, only a partial leaf is visible, or the image is unclear. Use no pesticides, medicine, dosages, or treatment prescriptions. Give 2-3 short, low-risk observation/care suggestions in Turkish. Keep description concise (one or two sentences).
-
-JSON schema: {"plant":"Türkçe yaygın ad (English common name)","scientificName":"kanıt varsa Latince ad, yoksa Belirlenemedi","condition":"görülen belirti veya Belirti belirlenemedi","confidence":0,"alternatives":[{"name":"Türkçe ad (English name)","evidence":"fotoğrafta görülen ayırt edici özellik"}],"description":"Türkçe, bir veya iki cümlelik ve görüntüdeki kanıta dayanan açıklama","steps":["Türkçe güvenli öneri"]}`;
+Return only this JSON shape: {"plant":"${plant.plant}","scientificName":"${plant.scientificName}","condition":"visible symptom or Belirti belirlenemedi","confidence":null,"alternatives":[],"description":"one or two Turkish sentences grounded in visible evidence","steps":["short safe suggestion"]}`;
 
   try {
     const upstream = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
@@ -81,63 +130,45 @@ JSON schema: {"plant":"Türkçe yaygın ad (English common name)","scientificNam
       body: JSON.stringify({
         model,
         temperature: 0,
-        max_tokens: 500,
+        max_tokens: 350,
         response_format: { type: "json_object" },
         messages: [
           {
             role: "system",
-            content: "Follow all user instructions. All prose intended for the user must be Turkish. Compare monocot parallel veins and strap-shaped leaves against dicot branching net-like veins and broad blades carefully. Never guess a species when distinguishing features are absent; report the plant as undetermined. Never invent alternative plant identities; each alternative needs specific visible evidence from the image. Do not infer cultivar from generic leaf shape. Return only the requested JSON object.",
+            content: "The plant identity is provided by Pl@ntNet and must not be changed. Assess only visible leaf symptoms. All user-facing text must be Turkish, cautious, and non-prescriptive. Return only the requested JSON object.",
           },
           {
             role: "user",
             content: [
               { type: "text", text: prompt },
-              {
-                type: "image_url",
-                image_url: { url: imageDataUrl },
-              },
+              { type: "image_url", image_url: { url: imageDataUrl } },
             ],
           },
         ],
       }),
-      signal: AbortSignal.timeout(180_000),
+      signal: AbortSignal.timeout(90_000),
     });
 
     if (!upstream.ok) {
-      const errorBody = await upstream.text();
-      console.error(`NVIDIA API error (${upstream.status}): ${errorBody.slice(0, 1000)}`);
-      return response.status(upstream.status === 429 ? 429 : 502).json({
-        error: upstream.status === 401 || upstream.status === 403
-          ? "NVIDIA API anahtarı geçersiz veya bu modele erişim yetkisi yok."
-          : upstream.status === 429
-            ? "NVIDIA API kullanım sınırına ulaşıldı. Biraz sonra tekrar deneyin."
-            : "NVIDIA analiz servisi şu anda yanıt veremiyor. Lütfen daha sonra tekrar deneyin.",
-      });
+      console.error(`NVIDIA disease assessment failed (${upstream.status}).`);
+      return null;
     }
 
     const payload = await upstream.json();
     const content = payload.choices?.[0]?.message?.content;
-    if (typeof content !== "string") {
-      console.error("NVIDIA API returned no text content.");
-      return response.status(502).json({ error: "NVIDIA yanıtı okunamadı. Lütfen tekrar deneyin." });
-    }
-
-    const result = parseModelResult(content);
-    if (!result) {
-      console.error("NVIDIA API returned content that did not match the expected result format.");
-      return response.status(502).json({ error: "Analiz yanıtı beklenen biçimde değildi. Lütfen tekrar deneyin." });
-    }
-
-    return response.json({ result, model });
+    const result = typeof content === "string" ? parseModelResult(content) : null;
+    return result
+      ? {
+          condition: result.condition,
+          description: result.description,
+          steps: result.steps,
+        }
+      : null;
   } catch (error) {
-    console.error("NVIDIA analysis request failed:", error);
-    return response.status(502).json({
-      error: error.name === "TimeoutError" || error.name === "AbortError"
-        ? "Analiz zaman aşımına uğradı. Lütfen tekrar deneyin."
-        : "NVIDIA servisine bağlanılamadı. İnternet bağlantınızı kontrol edin.",
-    });
+    console.error("NVIDIA disease assessment request failed:", error.message);
+    return null;
   }
-});
+}
 
 if (process.env.NODE_ENV === "production") {
   app.use(express.static(path.resolve(__dirname, "../dist")));
