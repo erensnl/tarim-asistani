@@ -40,9 +40,13 @@ export async function identifyPlant({
   }
 
   if (!upstream.ok) {
+    const responseBody = typeof upstream.text === "function"
+      ? await upstream.text().catch(() => "")
+      : "";
     const error = new Error("Pl@ntNet API isteği başarısız oldu.");
     error.status = upstream.status;
     error.code = getUpstreamErrorCode(upstream.status);
+    error.upstreamMessage = extractUpstreamMessage(responseBody, apiKey);
     throw error;
   }
 
@@ -77,6 +81,21 @@ function getUpstreamErrorCode(status) {
   if (status === 429) return "rate_limit";
   if (status >= 500) return "upstream_unavailable";
   return "upstream_error";
+}
+
+function extractUpstreamMessage(body, apiKey) {
+  let message = body.trim();
+  try {
+    const parsed = JSON.parse(message);
+    message = [parsed.message, parsed.error, parsed.detail]
+      .find((value) => typeof value === "string" && value.trim()) || "";
+  } catch {
+    message = message.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  }
+  return message
+    .replaceAll(apiKey, "[REDACTED]")
+    .replace(/api-key=[^&\s"'<>]+/gi, "api-key=[REDACTED]")
+    .slice(0, 300);
 }
 
 export function normalizePlantNetMatches(payload) {

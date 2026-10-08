@@ -122,6 +122,28 @@ test("classifies upstream project, quota, and server failures", async () => {
   }
 });
 
+test("extracts upstream error details and redacts API credentials", async () => {
+  await assert.rejects(
+    identifyPlant({
+      imageBuffer: Buffer.from("sample image"),
+      mimeType: "image/jpeg",
+      apiKey: "test-secret",
+      fetchImpl: async () => ({
+        ok: false,
+        status: 404,
+        text: async () => JSON.stringify({
+          message: "Unknown project for api-key=test-secret",
+        }),
+      }),
+    }),
+    (error) => {
+      assert.equal(error.code, "project_unavailable");
+      assert.equal(error.upstreamMessage, "Unknown project for api-key=[REDACTED]");
+      return true;
+    },
+  );
+});
+
 test("reports malformed PlantNet responses without hiding them as a network error", async () => {
   await assert.rejects(
     identifyPlant({

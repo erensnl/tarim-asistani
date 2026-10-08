@@ -88,15 +88,17 @@ app.post("/api/analyze", async (request, response) => {
       });
     }
     if (error.status === 401 || error.status === 403) {
-      console.error("Pl@ntNet API rejected the server credentials.");
+      console.error("Pl@ntNet API rejected the server credentials.", error.upstreamMessage || "");
       return response.status(502).json({
         error: "Pl@ntNet API anahtarı geçersiz veya proje erişim izni bulunmuyor.",
+        providerDetails: error.upstreamMessage || undefined,
       });
     }
     if (error.code === "project_unavailable") {
-      console.error("Pl@ntNet API does not provide the all-species project for this request.");
+      console.error("Pl@ntNet API does not provide the all-species project for this request.", error.upstreamMessage || "");
       return response.status(502).json({
         error: "Pl@ntNet tüm türler projesini bu istek için bulamadı. Pl@ntNet API anahtarınızın API erişimini kontrol edin.",
+        providerDetails: error.upstreamMessage || undefined,
       });
     }
     if (error.code === "invalid_request") {
