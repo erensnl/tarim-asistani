@@ -93,16 +93,52 @@ app.post("/api/analyze", async (request, response) => {
         error: "Pl@ntNet API anahtarı geçersiz veya proje erişim izni bulunmuyor.",
       });
     }
-    if (error.status === 429) {
+    if (error.code === "invalid_project") {
+      console.error("Pl@ntNet API rejected the configured project name.");
+      return response.status(502).json({
+        error: "Pl@ntNet proje adı geçersiz. PLANTNET_PROJECT değerini all olarak ayarlayın.",
+      });
+    }
+    if (error.code === "invalid_request") {
+      console.error("Pl@ntNet API rejected the image request.");
+      return response.status(422).json({
+        error: "Pl@ntNet fotoğrafı kabul etmedi. Yaprağın tamamını net gösteren JPG, PNG veya WEBP bir fotoğraf deneyin.",
+      });
+    }
+    if (error.code === "image_too_large") {
+      console.error("Pl@ntNet API rejected the image size.");
+      return response.status(413).json({
+        error: "Pl@ntNet fotoğraf boyutunu kabul etmedi. Daha küçük bir görsel deneyin.",
+      });
+    }
+    if (error.code === "rate_limit" || error.status === 429) {
       console.error("Pl@ntNet API rate limit reached.");
       return response.status(429).json({
         error: "Pl@ntNet kullanım sınırına ulaşıldı. Biraz sonra tekrar deneyin.",
+      });
+    }
+    if (error.code === "upstream_unavailable") {
+      console.error(`Pl@ntNet API returned HTTP ${error.status}.`);
+      return response.status(502).json({
+        error: "Pl@ntNet şu anda hizmet veremiyor. Biraz sonra tekrar deneyin.",
+      });
+    }
+    if (error.code === "invalid_response") {
+      console.error("Pl@ntNet API returned a non-JSON response.");
+      return response.status(502).json({
+        error: "Pl@ntNet geçerli bir yanıt vermedi. Lütfen daha sonra tekrar deneyin.",
       });
     }
     if (error.code === "timeout" || error.name === "TimeoutError" || error.name === "AbortError") {
       console.error("Pl@ntNet identification request timed out.");
       return response.status(504).json({
         error: "Pl@ntNet analizi zaman aşımına uğradı. Lütfen tekrar deneyin.",
+      });
+    }
+    if (error.code === "connection") {
+      console.error(`Cannot connect from API server to Pl@ntNet${error.networkCode ? ` (${error.networkCode})` : ""}.`);
+      return response.status(502).json({
+        error: "Uygulama sunucusu Pl@ntNet servisine erişemedi. Telefonunuzun interneti çalışsa bile sunucu tarafındaki bağlantı başarısız olabilir; biraz sonra tekrar deneyin.",
       });
     }
     console.error("Plant identification request failed:", error.message);

@@ -35,6 +35,7 @@ export async function identifyPlant({
       error.code = "timeout";
     } else {
       error.code = "connection";
+      error.networkCode = getNetworkErrorCode(error);
     }
     throw error;
   }
@@ -42,10 +43,18 @@ export async function identifyPlant({
   if (!upstream.ok) {
     const error = new Error("Pl@ntNet API isteği başarısız oldu.");
     error.status = upstream.status;
+    error.code = getUpstreamErrorCode(upstream.status);
     throw error;
   }
 
-  const payload = await upstream.json();
+  let payload;
+  try {
+    payload = await upstream.json();
+  } catch {
+    const error = new Error("Pl@ntNet geçerli JSON yanıtı döndürmedi.");
+    error.code = "invalid_response";
+    throw error;
+  }
   const matches = normalizePlantNetMatches(payload);
   if (matches.length === 0) {
     const error = new Error("Pl@ntNet yanıtında tanınabilir bir bitki eşleşmesi bulunamadı.");
@@ -54,6 +63,21 @@ export async function identifyPlant({
   }
 
   return matches;
+}
+
+function getNetworkErrorCode(error) {
+  const causeCode = error.cause?.code;
+  return typeof causeCode === "string" && /^[A-Z0-9_]{1,40}$/.test(causeCode) ? causeCode : "";
+}
+
+function getUpstreamErrorCode(status) {
+  if (status === 400) return "invalid_request";
+  if (status === 401 || status === 403) return "invalid_credentials";
+  if (status === 404) return "invalid_project";
+  if (status === 413) return "image_too_large";
+  if (status === 429) return "rate_limit";
+  if (status >= 500) return "upstream_unavailable";
+  return "upstream_error";
 }
 
 export function normalizePlantNetMatches(payload) {

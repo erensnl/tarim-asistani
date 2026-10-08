@@ -103,3 +103,38 @@ test("reports API authorization failures without exposing response content", asy
     { status: 401 },
   );
 });
+
+test("classifies upstream project, quota, and server failures", async () => {
+  for (const [status, expectedCode] of [
+    [404, "invalid_project"],
+    [429, "rate_limit"],
+    [503, "upstream_unavailable"],
+  ]) {
+    await assert.rejects(
+      identifyPlant({
+        imageBuffer: Buffer.from("sample image"),
+        mimeType: "image/jpeg",
+        apiKey: "test-secret",
+        fetchImpl: async () => ({ ok: false, status }),
+      }),
+      { status, code: expectedCode },
+    );
+  }
+});
+
+test("reports malformed PlantNet responses without hiding them as a network error", async () => {
+  await assert.rejects(
+    identifyPlant({
+      imageBuffer: Buffer.from("sample image"),
+      mimeType: "image/jpeg",
+      apiKey: "test-secret",
+      fetchImpl: async () => ({
+        ok: true,
+        json: async () => {
+          throw new SyntaxError("invalid JSON");
+        },
+      }),
+    }),
+    { code: "invalid_response" },
+  );
+});
