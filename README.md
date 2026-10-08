@@ -29,12 +29,12 @@ Mobil uygulamanın analiz yapabilmesi için uygulama sahibinin bir defa backend'
 
 1. [Render Blueprint oluşturma sayfasını](https://dashboard.render.com/blueprint/new?repo=https%3A%2F%2Fgithub.com%2Ferensnl%2Ftarim-asistani) açıp GitHub hesabınızla giriş yapın ve **Apply** ile `tarim-asistani-api` servisini oluşturun.
 2. Render sizden `NVIDIA_API_KEY` değerini isteyecek. NVIDIA Build'den aldığınız anahtarı bu gizli alana girin; anahtarı kaynak koda veya mobil uygulamaya eklemeyin.
-3. İlk dağıtım tamamlanıp health check başarılı olduktan sonra Render Dashboard'da servisi açın. Servisin herkese açık `https://...onrender.com` adresi mobil API adresinizdir.
-4. Mevcut APK'da bu adresi uygulamadaki **API sunucusu adresi** alanına bir kez girip kaydedin. Yeni APK'ya adresi sabitlemek için:
+3. İlk dağıtım tamamlanıp health check başarılı olduktan sonra Render Dashboard'da servisi açın. Bu proje için API adresi `https://tarim-asistani-api.onrender.com` olarak ayarlanmıştır.
+4. Güncel APK bu adresle yapılandırılmıştır. Farklı bir adres kullanırsanız uygulamadaki **API sunucusu adresi** alanına girip kaydedebilir veya yeni APK derlerken:
 
 ```bash
 # PowerShell
-$env:VITE_API_BASE_URL="https://SİZİN-SERVİSİNİZ.onrender.com"
+$env:VITE_API_BASE_URL="https://tarim-asistani-api.onrender.com"
 npm run mobile:sync
 npm run mobile:android
 ```
