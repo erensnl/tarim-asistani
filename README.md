@@ -23,7 +23,7 @@ Proje Capacitor ile Android ve iOS uygulama kabuğu sağlar. Android derlemek i�
 
 Android debug APK'sını `artifacts/tarim-asistani-debug.apk` konumundan indirip Android cihazda test edebilirsiniz. Bu APK test amaçlı debug imzasıyla oluşturulmuştur; Google Play dağıtımı için release imzası gerekir.
 
-Mobil uygulama backend'e gerçek bir cihazdan eriştiği için backend'in herkese açık HTTPS adresi gerekir; telefondaki `localhost` telefona karşılık gelir, geliştirme bilgisayarınıza değil. Dağıtılan API adresini Vite derlemesinden önce ortam değişkeni olarak verin:
+Mobil uygulama backend'e gerçek bir cihazdan eriştiği için backend'in herkese açık HTTPS adresi gerekir; telefondaki `localhost` telefona karşılık gelir, geliştirme bilgisayarınıza değil. Adresi `VITE_API_BASE_URL` ile derlemeye ekleyebilir veya uygulamadaki **API sunucusu adresi gerekli** alanından HTTPS adresini girip kaydedebilirsiniz. Uygulama adresi cihazda saklar:
 
 ```bash
 # PowerShell

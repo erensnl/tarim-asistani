@@ -31,6 +31,13 @@ a { color: inherit; text-decoration: none; }
 .brand-light { color: #88917f; font-weight: 500; }
 .header-note { display: flex; align-items: center; gap: 8px; color: #697367; font-size: 12px; }
 .online-dot { width: 7px; height: 7px; border-radius: 50%; background: #7a9a68; box-shadow: 0 0 0 3px #e8eee1; }
+.api-settings { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 13px 8.3%; border-bottom: 1px solid #dfe8d9; background: #f0f5eb; }
+.api-settings-missing { border-bottom-color: #e9ddc3; background: #faf6eb; }
+.api-settings-copy strong { display: block; margin-bottom: 3px; color: #3f5d40; font-size: 12px; }
+.api-settings-copy p { margin: 0; color: #798477; font-size: 10px; line-height: 1.5; }
+.api-settings-controls { display: flex; flex: 0 1 480px; gap: 8px; }
+.api-settings-controls input { width: 100%; min-width: 0; padding: 0 11px; border: 1px solid #dfe5d8; border-radius: 7px; color: #344335; background: #fff; font-size: 11px; }
+.api-settings-controls input:focus { outline: 2px solid #b9cbae; outline-offset: 1px; }
 main { padding: 0 8.3%; }
 .hero { min-height: 349px; display: flex; align-items: center; justify-content: space-between; position: relative; }
 .hero-copy { position: relative; z-index: 1; padding: 42px 0 37px; }
@@ -153,6 +160,7 @@ h1 span { color: #66845b; }
 @media (min-width: 1441px) { .app-shell { min-height: 100vh; box-shadow: 0 0 60px rgba(33, 52, 33, .04); } }
 @media (max-width: 850px) {
   .topbar, .footer { padding-left: 5%; padding-right: 5%; }
+  .api-settings { padding-left: 5%; padding-right: 5%; }
   main { padding: 0 5%; }
   .hero { min-height: 325px; }
   .hero-art { flex-basis: 33%; transform: scale(.85); transform-origin: right bottom; margin-left: -25px; }
@@ -160,6 +168,9 @@ h1 span { color: #66845b; }
 }
 @media (max-width: 620px) {
   .topbar { height: 67px; }
+  .api-settings { align-items: stretch; flex-direction: column; gap: 9px; padding: 12px 20px; }
+  .api-settings-controls { flex: auto; }
+  .api-settings-controls .button { flex: 0 0 auto; padding: 0 11px; }
   .brand { font-size: 17px; }
   .header-note { font-size: 0; }.online-dot { width: 8px; height: 8px; }
   main { padding: 0 20px; }

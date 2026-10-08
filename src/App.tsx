@@ -51,6 +51,10 @@ function UploadIcon() {
 function App() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isNative = Capacitor.isNativePlatform();
+  const [apiBaseUrl, setApiBaseUrl] = useState(
+    () => window.localStorage.getItem("tarim-asistani-api-url") || import.meta.env.VITE_API_BASE_URL || "",
+  );
+  const [apiUrlDraft, setApiUrlDraft] = useState(apiBaseUrl);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileName, setFileName] = useState("");
@@ -60,6 +64,23 @@ function App() {
   const [result, setResult] = useState<AnalysisResult | null>(null);
   const hasScientificName = result?.scientificName &&
     !/^(belirlenemedi|bilinmiyor|unknown|not identified)$/i.test(result.scientificName.trim());
+
+  function saveApiUrl() {
+    try {
+      const parsed = new URL(apiUrlDraft.trim());
+      if (parsed.protocol !== "https:") {
+        setError("Güvenli bağlantı için API adresi https:// ile başlamalıdır.");
+        return;
+      }
+      const normalizedUrl = parsed.toString().replace(/\/+$/, "");
+      localStorage.setItem("tarim-asistani-api-url", normalizedUrl);
+      setApiBaseUrl(normalizedUrl);
+      setApiUrlDraft(normalizedUrl);
+      setError("");
+    } catch {
+      setError("Geçerli bir HTTPS API adresi girin. Örnek: https://api.ornek.com");
+    }
+  }
 
   useEffect(
     () => () => {
@@ -125,9 +146,8 @@ function App() {
     setResult(null);
     setIsAnalyzing(true);
     try {
-      const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
       if (isNative && !apiBaseUrl) {
-        throw new Error("Mobil uygulama için API adresi ayarlanmamış. VITE_API_BASE_URL değerini yapılandırın.");
+        throw new Error("Önce API sunucusu ayarına herkese açık HTTPS adresinizi girip kaydedin.");
       }
       const imageDataUrl = await readImageAsDataUrl(file);
       const response = await fetch(`${apiBaseUrl}/api/analyze`, {
@@ -162,6 +182,29 @@ function App() {
         </a>
         <span className="header-note"><span className="online-dot" /> Üreticinin dijital yardımcısı</span>
       </header>
+
+      {isNative && (
+        <section className={`api-settings ${apiBaseUrl ? "" : "api-settings-missing"}`} aria-label="API sunucusu ayarı">
+          <div className="api-settings-copy">
+            <strong>{apiBaseUrl ? "API sunucusu ayarlandı" : "API sunucusu adresi gerekli"}</strong>
+            <p>Analiz için NVIDIA anahtarını güvenli biçimde saklayan sunucunuzun HTTPS adresini girin.</p>
+          </div>
+          <div className="api-settings-controls">
+            <label className="visually-hidden" htmlFor="api-base-url">HTTPS API sunucusu adresi</label>
+            <input
+              id="api-base-url"
+              type="url"
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              placeholder="https://api.ornek.com"
+              value={apiUrlDraft}
+              onChange={(event) => setApiUrlDraft(event.target.value)}
+            />
+            <button className="button button-secondary" type="button" onClick={saveApiUrl}>Adresi kaydet</button>
+          </div>
+        </section>
+      )}
 
       <main>
         <section className="hero">
