@@ -45,7 +45,7 @@ export async function identifyPlant({
       : "";
     const error = new Error("Pl@ntNet API isteği başarısız oldu.");
     error.status = upstream.status;
-    error.code = getUpstreamErrorCode(upstream.status);
+    error.code = getUpstreamErrorCode(upstream.status, responseBody);
     error.upstreamMessage = extractUpstreamMessage(responseBody, apiKey);
     throw error;
   }
@@ -73,7 +73,8 @@ function getNetworkErrorCode(error) {
   return typeof causeCode === "string" && /^[A-Z0-9_]{1,40}$/.test(causeCode) ? causeCode : "";
 }
 
-function getUpstreamErrorCode(status) {
+function getUpstreamErrorCode(status, responseBody = "") {
+  if (status === 404 && /species not found/i.test(responseBody)) return "no_match";
   if (status === 400) return "invalid_request";
   if (status === 401 || status === 403) return "invalid_credentials";
   if (status === 404) return "project_unavailable";

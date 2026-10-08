@@ -144,6 +144,26 @@ test("extracts upstream error details and redacts API credentials", async () => 
   );
 });
 
+test("treats Pl@ntNet's Species not found 404 as an unmatched image, not a network failure", async () => {
+  await assert.rejects(
+    identifyPlant({
+      imageBuffer: Buffer.from("sample image"),
+      mimeType: "image/jpeg",
+      apiKey: "test-secret",
+      fetchImpl: async () => ({
+        ok: false,
+        status: 404,
+        text: async () => JSON.stringify({ message: "Species not found" }),
+      }),
+    }),
+    (error) => {
+      assert.equal(error.code, "no_match");
+      assert.equal(error.upstreamMessage, "Species not found");
+      return true;
+    },
+  );
+});
+
 test("reports malformed PlantNet responses without hiding them as a network error", async () => {
   await assert.rejects(
     identifyPlant({
