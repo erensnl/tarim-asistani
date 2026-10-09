@@ -17,6 +17,8 @@ npm run dev
 
 Vite arayüzü `http://localhost:5173`, API sunucusu `http://localhost:3001` adresinde açılır. Vite `/api` isteklerini sunucuya yönlendirir. MongoDB bağlantısı yoksa uygulama hesap oluşturma/girişi etkinleştirmez; sunucu bu durumu açıkça bildirir.
 
+Geliştirme bilgisayarınız Atlas'a doğrudan bağlanamıyorsa, Vite'ın `/api` proxy hedefini `.env.local` içindeki `VITE_API_PROXY_TARGET=https://tarim-asistani-api.onrender.com` ayarıyla Render API'ye yönlendirebilirsiniz. Bu durumda yerel arayüz, test hesabı ve analiz isteklerini **canlı veritabanı/API** üzerinde çalıştırır; deneme verileri üretimde saklanabileceğinden bu ayarı yalnızca bunu bilerek kullanın. Ayar yoksa proxy yerel `http://localhost:3001` API'sini kullanır.
+
 MongoDB Atlas bağlantısını ayarlarken Atlas'taki veritabanı kullanıcısını ve **Network Access** IP izinlerini kontrol edin. `MONGODB_URI` alanına Atlas bağlantı şablonunu girin; kullanıcı adı ile parolayı `MONGODB_USERNAME` ve `MONGODB_PASSWORD` alanlarına koyun. Uygulama bu bilgileri URI'ye güvenli biçimde ekleyip özel karakterleri kodlar. `.env` dosyasını düzenledikten sonra `npm run db:check` komutuyla bağlantıyı test edin; komut bağlantı bilgisini yazdırmaz. Render dağıtımında aynı üç gizli değişkeni (`MONGODB_URI`, `MONGODB_USERNAME`, `MONGODB_PASSWORD`) servise ekleyin; bunları sohbetlere veya kaynak koda koymayın.
 
 Üretim derlemesi için `npm run build`; üretim sunucusunu başlatmak için `npm start` komutunu çalıştırın. `PORT`, `MONGODB_DATABASE` ve `NVIDIA_MODEL` değerleri `.env` dosyasında değiştirilebilir.
