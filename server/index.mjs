@@ -1,10 +1,24 @@
 import "dotenv/config";
 import express from "express";
+import { ObjectId } from "mongodb";
+import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseModelResult } from "./analysis-parser.mjs";
 import { plantReference } from "./plant-reference.mjs";
 import { identifyPlant } from "./plantnet.mjs";
+import { getDatabase } from "./database.mjs";
+import {
+  clearSessionCookie,
+  createSession,
+  databaseErrorResponse,
+  deleteCurrentSession,
+  getCurrentSession,
+  hashPassword,
+  recordAuditEvent,
+  requireAuthentication,
+  verifyPassword,
+} from "./auth.mjs";
 
 const app = express();
 const port = Number(process.env.PORT) || 3001;
@@ -13,31 +27,264 @@ const maxImageBytes = 10 * 1024 * 1024;
 const allowedMimeTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
+if (process.env.NODE_ENV === "production") app.set("trust proxy", 1);
+
 app.get("/health", (_request, response) => {
   response.json({
     status: "ok",
     referenceCrops: plantReference.length,
     plantNetConfigured: Boolean(process.env.PLANTNET_API_KEY),
     diseaseAssessmentConfigured: Boolean(process.env.NVIDIA_API_KEY),
+    aiAssistantConfigured: Boolean(process.env.NVIDIA_API_KEY),
+    databaseConfigured: Boolean(process.env.MONGODB_URI),
   });
 });
 
 app.use(express.json({ limit: "14mb" }));
 
-const capacitorOrigins = new Set(["capacitor://localhost", "http://localhost", "https://localhost"]);
-app.use("/api", (request, response, next) => {
+const capacitorOrigins = new Set([
+  "capacitor://localhost",
+  "http://localhost",
+  "https://localhost",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+]);
+app.use((request, response, next) => {
   const origin = request.headers.origin;
-  if (origin && capacitorOrigins.has(origin)) {
+  if (origin && (capacitorOrigins.has(origin) || process.env.NODE_ENV !== "production")) {
     response.setHeader("Access-Control-Allow-Origin", origin);
     response.setHeader("Vary", "Origin");
-    response.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
-    response.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    response.setHeader("Access-Control-Allow-Credentials", "true");
+    response.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    response.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-App-Platform");
     if (request.method === "OPTIONS") return response.sendStatus(204);
   }
   next();
 });
 
-app.post("/api/analyze", async (request, response) => {
+app.use((request, _response, next) => {
+  request.cookies = Object.fromEntries(
+    (request.headers.cookie || "")
+      .split(";")
+      .map((part) => part.trim().split("="))
+      .filter(([key, value]) => key && value)
+      .map(([key, ...value]) => [key, decodeURIComponent(value.join("="))]),
+  );
+  next();
+});
+
+app.post("/api/auth/register", async (request, response) => {
+  const name = typeof request.body?.name === "string" ? request.body.name.trim() : "";
+  const email = typeof request.body?.email === "string" ? request.body.email.trim().toLowerCase() : "";
+  const password = request.body?.password;
+  if (name.length < 2 || name.length > 60) {
+    return response.status(400).json({ error: "Ad soyad 2-60 karakter arasında olmalıdır." });
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) {
+    return response.status(400).json({ error: "Geçerli bir e-posta adresi girin." });
+  }
+  if (typeof password !== "string" || password.length < 8 || password.length > 128) {
+    return response.status(400).json({ error: "Şifreniz 8-128 karakter arasında olmalıdır." });
+  }
+
+  try {
+    const database = await getDatabase();
+    const user = {
+      name,
+      email,
+      passwordHash: await hashPassword(password),
+      createdAt: new Date(),
+    };
+    const created = await database.collection("users").insertOne(user);
+    user._id = created.insertedId;
+    await recordAuditEvent(request, { type: "register", email, userId: user._id });
+    const sessionToken = await createSession(request, response, user);
+    return response.status(201).json({
+      user: { id: user._id.toString(), name: user.name, email: user.email },
+      sessionToken: request.get("x-app-platform") === "capacitor" ? sessionToken : undefined,
+    });
+  } catch (error) {
+    if (error.code === 11000) {
+      return response.status(409).json({ error: "Bu e-posta adresiyle kayıtlı bir hesap zaten var." });
+    }
+    return databaseErrorResponse(error, response);
+  }
+});
+
+app.post("/api/auth/login", async (request, response) => {
+  const email = typeof request.body?.email === "string" ? request.body.email.trim().toLowerCase() : "";
+  const password = request.body?.password;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || typeof password !== "string") {
+    return response.status(400).json({ error: "E-posta adresi ve şifrenizi kontrol edin." });
+  }
+
+  try {
+    const database = await getDatabase();
+    const user = await database.collection("users").findOne({ email });
+    if (!user || !(await verifyPassword(password, user.passwordHash))) {
+      await recordAuditEvent(request, { type: "login_failed", email, userId: user?._id ?? null });
+      return response.status(401).json({ error: "E-posta adresi veya şifre hatalı." });
+    }
+    await recordAuditEvent(request, { type: "login", email, userId: user._id });
+    const sessionToken = await createSession(request, response, user);
+    return response.json({
+      user: { id: user._id.toString(), name: user.name, email: user.email },
+      sessionToken: request.get("x-app-platform") === "capacitor" ? sessionToken : undefined,
+    });
+  } catch (error) {
+    return databaseErrorResponse(error, response);
+  }
+});
+
+app.get("/api/auth/me", requireAuthentication, (request, response) => {
+  const { id, name, email } = request.user;
+  return response.json({ user: { id, name, email } });
+});
+
+app.post("/api/auth/logout", async (request, response) => {
+  try {
+    const session = await deleteCurrentSession(request);
+    if (session) {
+      await recordAuditEvent(request, {
+        type: "logout",
+        email: session.email,
+        userId: session.userId,
+      });
+    }
+    clearSessionCookie(response);
+    return response.json({ ok: true });
+  } catch (error) {
+    return databaseErrorResponse(error, response);
+  }
+});
+
+app.get("/api/conversations", requireAuthentication, async (request, response) => {
+  try {
+    const database = await getDatabase();
+    const conversations = await database.collection("conversations")
+      .find({ userId: request.user.databaseId, type: "advisor" })
+      .sort({ updatedAt: -1 })
+      .limit(20)
+      .toArray();
+    return response.json({
+      conversations: conversations.map(({ _id, messages, updatedAt }) => ({
+        id: _id.toString(),
+        messages,
+        updatedAt,
+      })),
+    });
+  } catch (error) {
+    return databaseErrorResponse(error, response);
+  }
+});
+
+app.post("/api/assistant", requireAuthentication, async (request, response) => {
+  const prompt = typeof request.body?.message === "string" ? request.body.message.trim() : "";
+  const requestedId = request.body?.conversationId;
+  if (!prompt || prompt.length > 4000) {
+    return response.status(400).json({ error: "Mesajınız 1-4000 karakter arasında olmalıdır." });
+  }
+  if (requestedId !== undefined && !ObjectId.isValid(requestedId)) {
+    return response.status(400).json({ error: "Konuşma kimliği geçersiz." });
+  }
+
+  const database = await getDatabase().catch((error) => {
+    databaseErrorResponse(error, response);
+    return null;
+  });
+  if (!database) return;
+
+  const collection = database.collection("conversations");
+  const now = new Date();
+  const conversationId = requestedId ? new ObjectId(requestedId) : new ObjectId();
+  const userMessage = { role: "user", content: prompt, createdAt: now };
+  let conversation;
+  let previousMessages = [];
+  try {
+    conversation = requestedId
+      ? await collection.findOne({ _id: conversationId, userId: request.user.databaseId, type: "advisor" })
+      : null;
+    if (requestedId && !conversation) {
+      return response.status(404).json({ error: "Bu konuşma bulunamadı." });
+    }
+    previousMessages = conversation?.messages || [];
+    if (conversation) {
+      await collection.updateOne(
+        { _id: conversationId, userId: request.user.databaseId },
+        { $push: { messages: userMessage }, $set: { updatedAt: now } },
+      );
+    } else {
+      conversation = {
+        _id: conversationId,
+        userId: request.user.databaseId,
+        type: "advisor",
+        messages: [userMessage],
+        createdAt: now,
+        updatedAt: now,
+      };
+      await collection.insertOne(conversation);
+    }
+  } catch (error) {
+    return databaseErrorResponse(error, response);
+  }
+
+  const apiKey = process.env.NVIDIA_API_KEY;
+  if (!apiKey) {
+    return response.status(503).json({
+      error: "Fikir danışma için sunucuda NVIDIA_API_KEY yapılandırılmalıdır. Mesajınız konuşma geçmişinize kaydedildi.",
+      conversationId: conversationId.toString(),
+    });
+  }
+
+  try {
+    const history = [...previousMessages, userMessage]
+      .slice(-12)
+      .map(({ role, content }) => ({ role, content }));
+    const upstream = await fetch("https://integrate.api.nvidia.com/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model,
+        temperature: 0.4,
+        max_tokens: 650,
+        messages: [
+          {
+            role: "system",
+            content: "Tarım Asistanı için Türkçe konuşan, dikkatli bir tarım danışmanısın. Fikir geliştirme, ekim planı ve genel bakım hakkında anlaşılır öneriler ver. Bilmediğin koşulları kesinmiş gibi sunma; yerel iklim/toprak bilgisini sor. Bitki hastalıklarını kesin teşhis etme ve pestisit, ilaç, doz veya kimyasal uygulama önermeden güvenli gözlem önerileri sun.",
+          },
+          ...history,
+        ],
+      }),
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!upstream.ok) {
+      console.error(`AI advisor request failed (${upstream.status}).`);
+      return response.status(502).json({
+        error: "AI danışma servisi şu anda yanıt vermiyor. Mesajınız konuşma geçmişinize kaydedildi.",
+        conversationId: conversationId.toString(),
+      });
+    }
+    const payload = await upstream.json();
+    const answer = payload.choices?.[0]?.message?.content;
+    if (typeof answer !== "string" || !answer.trim()) {
+      return response.status(502).json({ error: "AI danışma servisi boş yanıt verdi. Lütfen tekrar deneyin.", conversationId: conversationId.toString() });
+    }
+    const assistantMessage = { role: "assistant", content: answer.trim(), createdAt: new Date() };
+    await collection.updateOne(
+      { _id: conversationId, userId: request.user.databaseId },
+      { $push: { messages: assistantMessage }, $set: { updatedAt: assistantMessage.createdAt } },
+    );
+    return response.json({ conversationId: conversationId.toString(), message: assistantMessage });
+  } catch (error) {
+    console.error("AI advisor request failed:", error.message);
+    return response.status(502).json({
+      error: "AI danışma isteği tamamlanamadı. Biraz sonra tekrar deneyin.",
+      conversationId: conversationId.toString(),
+    });
+  }
+});
+
+app.post("/api/analyze", requireAuthentication, async (request, response) => {
   const { imageDataUrl } = request.body ?? {};
   if (typeof imageDataUrl !== "string") {
     return response.status(400).json({ error: "Analiz edilecek görsel bulunamadı." });
@@ -79,8 +326,22 @@ app.post("/api/analyze", async (request, response) => {
       healthAssessmentAvailable: Boolean(healthAssessment),
     };
 
+    const database = await getDatabase();
+    await database.collection("conversations").insertOne({
+      userId: request.user.databaseId,
+      type: "plant-analysis",
+      messages: [
+        { role: "user", content: "Bitki fotoğrafı analizi", createdAt: new Date() },
+        { role: "assistant", content: `${result.plant}: ${result.condition}. ${result.description}`, createdAt: new Date() },
+      ],
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
     return response.json({ result, identificationProvider: "Pl@ntNet" });
   } catch (error) {
+    if (error.code === "database_not_configured" || error.name?.startsWith("Mongo")) {
+      return databaseErrorResponse(error, response);
+    }
     if (error.code === "missing_api_key") {
       return response.status(503).json({
         error: "Sunucuda PLANTNET_API_KEY ayarlanmamış. Render ortam değişkenlerine Pl@ntNet API anahtarını ekleyin.",

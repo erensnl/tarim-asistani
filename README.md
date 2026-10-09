@@ -1,22 +1,32 @@
 # Tarım Asistanı
 
-Türkçe bitki fotoğrafı yükleme ve Pl@ntNet ile bitki türü tanıma sunan React + TypeScript uygulaması. NVIDIA anahtarı yapılandırılmışsa, yaprak belirtileri için ayrı ve ihtiyatlı bir ön değerlendirme de yapılır.
+Türkçe tarım asistanı; zorunlu hesap girişi, canlı hava durumu, bitki fotoğrafı tanıma ve tarım fikirleri için AI danışma sunar. Hesaplar, oturumlar ve konuşma geçmişi MongoDB'de saklanır.
 
 ## Kurulum
 
-1. [Pl@ntNet API sayfasından](https://my.plantnet.org/) hesap açıp API anahtarı alın.
-2. Proje kökünde `.env.example` dosyasını `.env` adıyla kopyalayın ve `PLANTNET_API_KEY` alanına anahtarınızı girin.
-3. İsteğe bağlı hastalık ön değerlendirmesi için [NVIDIA Build](https://build.nvidia.com/) üzerinden API anahtarı alın ve `NVIDIA_API_KEY` alanına girin.
-4. Bağımlılıkları kurup geliştirme sunucularını başlatın:
+1. MongoDB Atlas'ta bir küme oluşturun; veritabanı kullanıcısı ve ağ erişim izinlerini ayarlayıp bağlantı URI'sini alın.
+2. [Pl@ntNet API sayfasından](https://my.plantnet.org/) hesap açıp API anahtarı alın.
+3. [NVIDIA Build](https://build.nvidia.com/) üzerinden `NVIDIA_API_KEY` alın; fikir danışma ve isteğe bağlı hastalık ön değerlendirmesi bu anahtarı kullanır.
+4. Proje kökünde `.env.example` dosyasını `.env` adıyla kopyalayın; `MONGODB_URI`, `PLANTNET_API_KEY` ve `NVIDIA_API_KEY` değerlerini girin.
+5. Bağımlılıkları kurup geliştirme sunucularını başlatın:
 
 ```bash
 npm install
 npm run dev
 ```
 
-Vite arayüzü `http://localhost:5173`, API sunucusu `http://localhost:3001` adresinde açılır. Vite `/api` isteklerini sunucuya yönlendirir.
+Vite arayüzü `http://localhost:5173`, API sunucusu `http://localhost:3001` adresinde açılır. Vite `/api` isteklerini sunucuya yönlendirir. MongoDB bağlantısı yoksa uygulama hesap oluşturma/girişi etkinleştirmez; sunucu bu durumu açıkça bildirir.
 
-Üretim derlemesi için `npm run build`; üretim sunucusunu başlatmak için `npm start` komutunu çalıştırın. `PORT` ve `NVIDIA_MODEL` değerleri `.env` dosyasında değiştirilebilir.
+MongoDB Atlas bağlantısını ayarlarken Atlas'taki veritabanı kullanıcısını ve **Network Access** IP izinlerini kontrol edin. Parolada `@`, `:`, `/` gibi URI özel karakterleri varsa URI içindeki parola bölümünü URL-encode edin. `.env` dosyasını düzenledikten sonra `npm run db:check` komutuyla bağlantıyı test edin; komut bağlantı bilgisini yazdırmaz. Render dağıtımında aynı URI'yi servisin gizli `MONGODB_URI` ortam değişkenine ekleyin; URI'yi sohbetlere veya kaynak koda koymayın.
+
+Üretim derlemesi için `npm run build`; üretim sunucusunu başlatmak için `npm start` komutunu çalıştırın. `PORT`, `MONGODB_DATABASE` ve `NVIDIA_MODEL` değerleri `.env` dosyasında değiştirilebilir.
+
+## Hesaplar ve ana sayfa
+
+- Tüm bitki analizi, danışma ve konuşma geçmişi uç noktaları giriş gerektirir. Parolalar sunucuda scrypt ile özetlenir; web oturumu `HttpOnly` çerezde, mobil oturum ise yalnızca özetlenmiş biçimi MongoDB'ye yazılan rastgele anahtarla tutulur. Oturumlar 30 gün sonra sona erer.
+- Hesap, giriş, başarısız giriş ve çıkış kayıtları e-posta, IP adresi, kullanıcı aracısı ve zaman bilgisiyle `audit_events` koleksiyonuna yazılır. Oturum IP kayıtları `sessions` koleksiyonundadır.
+- AI danışma konuşmaları ve bitki analizi metin sonuçları `conversations` koleksiyonunda kullanıcıya özel saklanır. Bitki fotoğrafları kalıcı olarak veritabanına kaydedilmez.
+- Ana sayfadaki hava durumu Open-Meteo'dan alınır; şehir arama veya cihaz konumu kullanılabilir. Akıllı öneri hava tahminine göre oluşturulur ve profesyonel tarımsal teşhis yerine geçmez.
 
 ## Mobil uygulama
 
@@ -29,7 +39,7 @@ Android debug APK'sını `artifacts/tarim-asistani-debug.apk` konumundan indirip
 Mobil uygulamanın analiz yapabilmesi için uygulama sahibinin bir defa backend'i internette yayımlaması gerekir; uygulama kullanıcıları kendilerine ait sunucu açmaz. Hazır dağıtım ayarı [Render Blueprint](render.yaml) olarak eklenmiştir. Yayımlamak için:
 
 1. [Render Blueprint oluşturma sayfasını](https://dashboard.render.com/blueprint/new?repo=https%3A%2F%2Fgithub.com%2Ferensnl%2Ftarim-asistani) açıp GitHub hesabınızla giriş yapın ve **Apply** ile `tarim-asistani-api` servisini oluşturun.
-2. Render sizden zorunlu `PLANTNET_API_KEY` değerini isteyecek. [Pl@ntNet API hesabınızdan](https://my.plantnet.org/) aldığınız anahtarı bu gizli alana girin. Hastalık ön değerlendirmesi de istiyorsanız `NVIDIA_API_KEY` değerini Render Dashboard'da ayrıca tanımlayın. Anahtarları kaynak koda veya mobil uygulamaya eklemeyin.
+2. Render sizden `MONGODB_URI` ve `PLANTNET_API_KEY` değerlerini isteyecek. MongoDB Atlas bağlantı URI'sini ve [Pl@ntNet API hesabınızdan](https://my.plantnet.org/) aldığınız API anahtarını bu gizli alanlara girin. AI fikir danışma ve hastalık ön değerlendirmesi için `NVIDIA_API_KEY` değerini de Render Dashboard'da tanımlayın. Anahtarları kaynak koda veya mobil uygulamaya eklemeyin.
 3. İlk dağıtım tamamlanıp health check başarılı olduktan sonra Render Dashboard'da servisi açın. Bu proje için API adresi `https://tarim-asistani-api.onrender.com` olarak ayarlanmıştır.
 4. Güncel APK bu adresle yapılandırılmıştır. Farklı bir adres kullanırsanız uygulamadaki **API sunucusu adresi** alanına girip kaydedebilir veya yeni APK derlerken:
 
@@ -57,4 +67,4 @@ Render'ın ücretsiz servisi bir süre istek almadığında uykuya geçebilir; y
 
 ## Gizlilik ve güvenli kullanım
 
-Analiz istendiğinde fotoğraf Pl@ntNet'e gönderilir; `NVIDIA_API_KEY` sunucuda yapılandırılmışsa aynı fotoğraf belirtiler için ayrıca NVIDIA'ya da iletilir. Anahtarları `.env` içinde veya Render'ın gizli ortam değişkenlerinde saklayın; `.env` dosyasını paylaşmayın. Uygulama eşleşme puanını doğrulanmış olasılık olarak sunmaz; hastalık ön değerlendirmesi kesin teşhis değildir. Modelden ilaç veya pestisit reçetesi vermemesi istenir; bitki sağlığı kararlarında uzman görüşü alınmalıdır.
+Hesap ve güvenlik kayıtlarında e-posta adresi, IP adresi, kullanıcı aracısı ve zaman bilgisi; danışma geçmişinde gönderilen mesajlar ve AI yanıtları saklanır. AI danışma mesajları yanıt üretmek için NVIDIA API'ye iletilir. Bitki analizi istendiğinde fotoğraf Pl@ntNet'e gönderilir; `NVIDIA_API_KEY` sunucuda yapılandırılmışsa aynı fotoğraf belirtiler için ayrıca NVIDIA'ya iletilir. Fotoğraf dosyası MongoDB'ye kaydedilmez. Anahtarları `.env` içinde veya Render'ın gizli ortam değişkenlerinde saklayın; `.env` dosyasını paylaşmayın. Uygulama eşleşme puanını doğrulanmış olasılık olarak sunmaz; hastalık ön değerlendirmesi kesin teşhis değildir. Modelden ilaç veya pestisit reçetesi vermemesi istenir; bitki sağlığı kararlarında uzman görüşü alınmalıdır.

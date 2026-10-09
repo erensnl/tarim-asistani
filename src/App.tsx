@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 import { Capacitor } from "@capacitor/core";
 import { Camera, CameraResultType, CameraSource } from "@capacitor/camera";
 
@@ -17,9 +17,130 @@ type AnalyzeResponse = {
   result: AnalysisResult;
 };
 
+type User = { id: string; name: string; email: string };
+type AdvisorMessage = { role: "user" | "assistant"; content: string; createdAt?: string };
+type WeatherData = {
+  city: string;
+  temperature: number;
+  humidity: number;
+  rainProbability: number;
+  code: number;
+};
+
 const maxUploadBytes = 10 * 1024 * 1024;
 const maxAnalysisDimension = 2048;
 const analysisTimeoutMs = 210_000;
+const weatherCodes: Record<number, string> = {
+  0: "Açık",
+  1: "Az bulutlu",
+  2: "Parçalı bulutlu",
+  3: "Kapalı",
+  45: "Sisli",
+  48: "Sisli",
+  51: "Hafif çiseleme",
+  53: "Çiseleme",
+  55: "Kuvvetli çiseleme",
+  61: "Hafif yağmur",
+  63: "Yağmurlu",
+  65: "Kuvvetli yağmur",
+  71: "Hafif kar",
+  73: "Karlı",
+  75: "Kuvvetli kar",
+  80: "Sağanak",
+  81: "Sağanak",
+  82: "Kuvvetli sağanak",
+  95: "Gök gürültülü",
+};
+
+function AuthScreen({
+  apiBaseUrl,
+  isNative,
+  onAuthenticated,
+}: {
+  apiBaseUrl: string;
+  isNative: boolean;
+  onAuthenticated: (user: User, sessionToken?: string) => void;
+}) {
+  const [mode, setMode] = useState<"login" | "register">("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setBusy(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/auth/${mode}`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(isNative ? { "X-App-Platform": "capacitor" } : {}),
+        },
+        body: JSON.stringify({ name, email, password }),
+      });
+      const payload = await response.json() as { user?: User; sessionToken?: string; error?: string };
+      if (!response.ok || !payload.user) {
+        throw new Error(payload.error || "Hesabınıza erişilemedi. Lütfen tekrar deneyin.");
+      }
+      if (isNative && !payload.sessionToken) {
+        throw new Error("Güvenli mobil oturum başlatılamadı. Lütfen tekrar deneyin.");
+      }
+      onAuthenticated(payload.user, payload.sessionToken);
+    } catch (requestError) {
+      setError(requestError instanceof TypeError
+        ? "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin."
+        : requestError instanceof Error && requestError.message
+          ? requestError.message
+          : "Hesabınıza erişilemedi. Lütfen tekrar deneyin.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <main className="auth-page">
+      <div className="auth-decoration" aria-hidden="true"><LeafMark /></div>
+      <section className="auth-card">
+        <span className="step-label">TARIM ASİSTANI</span>
+        <h1>{mode === "login" ? <>Üretiminize<br /><span>iyi bakın.</span></> : <>Aramıza<br /><span>hoş geldiniz.</span></>}</h1>
+        <p className="auth-description">
+          Hava durumunu takip edin, bitkilerinizi tanıyın ve tarlanıza özel fikirler alın.
+        </p>
+        <div className="auth-tabs" role="tablist" aria-label="Hesap işlemi">
+          <button type="button" role="tab" aria-selected={mode === "login"} onClick={() => { setMode("login"); setError(""); }}>Giriş yap</button>
+          <button type="button" role="tab" aria-selected={mode === "register"} onClick={() => { setMode("register"); setError(""); }}>Hesap oluştur</button>
+        </div>
+        <form className="auth-form" onSubmit={(event) => void submit(event)}>
+          {mode === "register" && (
+            <label>Ad soyad
+              <input autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} minLength={2} maxLength={60} required />
+            </label>
+          )}
+          <label>E-posta adresi
+            <input type="email" autoComplete="email" value={email} onChange={(event) => setEmail(event.target.value)} maxLength={254} required />
+          </label>
+          <label>Şifre
+            <input type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} minLength={8} maxLength={128} required />
+          </label>
+          {error && <p className="auth-error" role="alert">{error}</p>}
+          <button className="button button-primary auth-submit" disabled={busy} type="submit">
+            {busy ? <><span className="spinner" /> İşleniyor…</> : mode === "login" ? "Güvenli giriş yap" : "Ücretsiz hesap oluştur"}
+          </button>
+        </form>
+        <p className="auth-privacy">Hesap oluşturduğunuzda e-posta adresiniz ve giriş/çıkış IP kayıtlarınız hesabınızın güvenliği için saklanır.</p>
+      </section>
+      <div className="auth-side-copy">
+        <span>TOPRAĞINIZ İÇİN</span>
+        <h2>Doğru bilgi,<br />bereketli yarınlar.</h2>
+        <p>Hava, bitki sağlığı ve yapay zekâ destekli tarım fikirleri tek yerde.</p>
+      </div>
+    </main>
+  );
+}
 
 function isAnalysisResult(value: unknown): value is AnalysisResult {
   if (!value || typeof value !== "object") return false;
@@ -90,8 +211,201 @@ function App() {
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<AnalysisResult | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [aiActive, setAiActive] = useState(false);
+  const [weatherCity, setWeatherCity] = useState("Ankara");
+  const [weatherError, setWeatherError] = useState("");
+  const [advisorMessages, setAdvisorMessages] = useState<AdvisorMessage[]>([]);
+  const [conversationId, setConversationId] = useState<string | null>(null);
+  const [advisorDraft, setAdvisorDraft] = useState("");
+  const [advisorBusy, setAdvisorBusy] = useState(false);
+  const [advisorError, setAdvisorError] = useState("");
+  const [logoutBusy, setLogoutBusy] = useState(false);
   const hasScientificName = result?.scientificName &&
     !/^(belirlenemedi|bilinmiyor|unknown|not identified)$/i.test(result.scientificName.trim());
+
+  function sessionHeaders(json = false): Record<string, string> {
+    const token = isNative ? window.localStorage.getItem("tarim-asistani-session-token") : null;
+    return {
+      ...(json ? { "Content-Type": "application/json" } : {}),
+      ...(isNative ? { "X-App-Platform": "capacitor" } : {}),
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  }
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch(`${apiBaseUrl}/api/auth/me`, { credentials: "include", headers: sessionHeaders(), signal: controller.signal })
+      .then(async (response) => {
+        const payload = await response.json() as { user?: User; error?: string };
+        if (response.ok && payload.user) setUser(payload.user);
+        else if (response.status === 401 && isNative) window.localStorage.removeItem("tarim-asistani-session-token");
+        else if (response.status !== 401) setAuthError(payload.error || "Hesap hizmetine ulaşılamadı.");
+      })
+      .catch((requestError: unknown) => {
+        if (requestError instanceof Error && requestError.name === "AbortError") return;
+        setAuthError("Hesap sunucusuna ulaşılamadı. Bağlantınızı kontrol edip tekrar deneyin.");
+      })
+      .finally(() => setAuthChecked(true));
+    return () => controller.abort();
+  }, [apiBaseUrl, isNative]);
+
+  useEffect(() => {
+    if (!user) return;
+    void loadWeather(39.9255, 32.8663, "Ankara");
+    fetch(`${apiBaseUrl}/health`)
+      .then((response) => response.json() as Promise<{ aiAssistantConfigured?: boolean }>)
+      .then((payload) => setAiActive(Boolean(payload.aiAssistantConfigured)))
+      .catch(() => setAiActive(false));
+    fetch(`${apiBaseUrl}/api/conversations`, { credentials: "include", headers: sessionHeaders() })
+      .then(async (response) => {
+        if (!response.ok) return;
+        const payload = await response.json() as { conversations?: Array<{ id: string; messages: AdvisorMessage[] }> };
+        const latest = payload.conversations?.[0];
+        if (latest) {
+          setConversationId(latest.id);
+          setAdvisorMessages(latest.messages);
+        }
+      })
+      .catch(() => setAdvisorError("Kayıtlı konuşmalar yüklenemedi."));
+  }, [apiBaseUrl, user, isNative]);
+
+  async function loadWeather(latitude: number, longitude: number, city: string) {
+    setWeatherError("");
+    try {
+      const url = new URL("https://api.open-meteo.com/v1/forecast");
+      url.search = new URLSearchParams({
+        latitude: String(latitude),
+        longitude: String(longitude),
+        current: "temperature_2m,relative_humidity_2m,weather_code",
+        daily: "precipitation_probability_max",
+        forecast_days: "2",
+        timezone: "auto",
+      }).toString();
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Hava durumu alınamadı.");
+      const payload = await response.json() as {
+        current?: { temperature_2m?: number; relative_humidity_2m?: number; weather_code?: number };
+        daily?: { precipitation_probability_max?: number[] };
+      };
+      if (
+        typeof payload.current?.temperature_2m !== "number" ||
+        typeof payload.current.relative_humidity_2m !== "number" ||
+        typeof payload.current.weather_code !== "number"
+      ) throw new Error("Hava durumu yanıtı eksik.");
+      setWeather({
+        city,
+        temperature: Math.round(payload.current.temperature_2m),
+        humidity: payload.current.relative_humidity_2m,
+        rainProbability: payload.daily?.precipitation_probability_max?.[0] ?? 0,
+        code: payload.current.weather_code,
+      });
+      setWeatherCity(city);
+    } catch (weatherRequestError) {
+      setWeatherError(weatherRequestError instanceof Error ? weatherRequestError.message : "Hava durumu alınamadı.");
+    }
+  }
+
+  async function searchWeather(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const query = weatherCity.trim();
+    if (!query) return;
+    setWeatherError("");
+    try {
+      const url = new URL("https://geocoding-api.open-meteo.com/v1/search");
+      url.search = new URLSearchParams({ name: query, count: "1", language: "tr", format: "json" }).toString();
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Konum aranamadı.");
+      const payload = await response.json() as { results?: Array<{ name: string; latitude: number; longitude: number; admin1?: string }> };
+      const location = payload.results?.[0];
+      if (!location) throw new Error("Bu isimle bir konum bulunamadı.");
+      await loadWeather(location.latitude, location.longitude, location.admin1 ? `${location.name}, ${location.admin1}` : location.name);
+    } catch (weatherRequestError) {
+      setWeatherError(weatherRequestError instanceof Error ? weatherRequestError.message : "Konum aranamadı.");
+    }
+  }
+
+  async function useDeviceLocation() {
+    if (!navigator.geolocation) {
+      setWeatherError("Bu cihaz konum bilgisini desteklemiyor.");
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (position) => void loadWeather(position.coords.latitude, position.coords.longitude, "Konumunuz"),
+      () => setWeatherError("Konum alınamadı. Şehir adını arayarak devam edebilirsiniz."),
+      { timeout: 10000 },
+    );
+  }
+
+  async function askAdvisor(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const message = advisorDraft.trim();
+    if (!message || advisorBusy) return;
+    const userMessage: AdvisorMessage = { role: "user", content: message, createdAt: new Date().toISOString() };
+    setAdvisorMessages((messages) => [...messages, userMessage]);
+    setAdvisorDraft("");
+    setAdvisorError("");
+    setAdvisorBusy(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/assistant`, {
+        method: "POST",
+        credentials: "include",
+        headers: sessionHeaders(true),
+        body: JSON.stringify({ message, conversationId }),
+      });
+      const payload = await response.json() as { conversationId?: string; message?: AdvisorMessage; error?: string };
+      if (payload.conversationId) setConversationId(payload.conversationId);
+      if (!response.ok || !payload.message) throw new Error(payload.error || "Danışma yanıtı alınamadı.");
+      setAdvisorMessages((messages) => [...messages, payload.message!]);
+    } catch (requestError) {
+      setAdvisorError(requestError instanceof Error
+        ? requestError.message
+        : "AI danışma servisine ulaşılamadı.");
+    } finally {
+      setAdvisorBusy(false);
+    }
+  }
+
+  async function signOut() {
+    setLogoutBusy(true);
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+        headers: sessionHeaders(),
+      });
+      if (!response.ok) {
+        const payload = await response.json() as { error?: string };
+        throw new Error(payload.error || "Oturum kapatılamadı.");
+      }
+      if (isNative) window.localStorage.removeItem("tarim-asistani-session-token");
+      setUser(null);
+      setAdvisorMessages([]);
+      setConversationId(null);
+      setAdvisorDraft("");
+      setAuthError("");
+    } catch (requestError) {
+      setAuthError(requestError instanceof Error ? requestError.message : "Oturum kapatılamadı. Lütfen tekrar deneyin.");
+    } finally {
+      setLogoutBusy(false);
+    }
+  }
+
+  function acceptAuthenticatedUser(authenticatedUser: User, sessionToken?: string) {
+    if (isNative && sessionToken) {
+      try {
+        window.localStorage.setItem("tarim-asistani-session-token", sessionToken);
+      } catch {
+        setAuthError("Mobil oturum bu cihazda güvenle saklanamadı. Depolama alanını kontrol edip tekrar deneyin.");
+        return;
+      }
+    }
+    setAuthError("");
+    setUser(authenticatedUser);
+  }
 
   function saveApiUrl() {
     let parsed: URL;
@@ -192,7 +506,8 @@ function App() {
       try {
         response = await fetch(`${apiBaseUrl}/api/analyze`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          headers: sessionHeaders(true),
           body: JSON.stringify({ imageDataUrl }),
           signal: controller.signal,
         });
@@ -240,6 +555,44 @@ function App() {
     }
   }
 
+  if (!authChecked) {
+    return (
+      <div className="app-shell">
+        <header className="topbar">
+          <a className="brand" href="#" aria-label="Tarım Asistanı ana sayfa"><span className="brand-mark"><LeafMark /></span><span>tarım<span className="brand-light">asistanı</span></span></a>
+        </header>
+        <div className="session-loading"><span className="spinner spinner-green" /> Güvenli oturum kontrol ediliyor…</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="app-shell">
+        <header className="topbar">
+          <a className="brand" href="#" aria-label="Tarım Asistanı ana sayfa"><span className="brand-mark"><LeafMark /></span><span>tarım<span className="brand-light">asistanı</span></span></a>
+          <span className="header-note"><span className="online-dot" /> Üreticinin dijital yardımcısı</span>
+        </header>
+        {isNative && (
+          <section className={`api-settings ${apiBaseUrl ? "" : "api-settings-missing"}`} aria-label="API sunucusu ayarı">
+            <div className="api-settings-copy">
+              <strong>{apiBaseUrl ? "API sunucusu ayarlandı" : "API sunucusu adresi gerekli"}</strong>
+              <p>Giriş ve bitki tanıma hizmetleri güvenli sunucu bağlantısıyla çalışır.</p>
+            </div>
+            <div className="api-settings-controls">
+              <label className="visually-hidden" htmlFor="api-base-url">HTTPS API sunucusu adresi</label>
+              <input id="api-base-url" type="url" inputMode="url" autoCapitalize="none" autoCorrect="off" placeholder="https://api.ornek.com" value={apiUrlDraft} onChange={(event) => setApiUrlDraft(event.target.value)} />
+              <button className="button button-secondary" type="button" onClick={saveApiUrl}>Adresi kaydet</button>
+            </div>
+          </section>
+        )}
+        {authError && <div className="auth-service-error" role="status">{authError}</div>}
+        <AuthScreen apiBaseUrl={apiBaseUrl} isNative={isNative} onAuthenticated={acceptAuthenticatedUser} />
+        <footer className="footer"><span>Doğayla birlikte, daha bilinçli üretim.</span><span className="footer-disclaimer">Kişisel verileriniz güvenli oturumla korunur.</span></footer>
+      </div>
+    );
+  }
+
   return (
     <div className="app-shell">
       <header className="topbar">
@@ -249,7 +602,10 @@ function App() {
           </span>
           <span>tarım<span className="brand-light">asistanı</span></span>
         </a>
-        <span className="header-note"><span className="online-dot" /> Üreticinin dijital yardımcısı</span>
+        <div className="header-actions">
+          <span className="header-note"><span className="online-dot" /> {user.name}</span>
+          <button className="signout-button" type="button" onClick={() => void signOut()} disabled={logoutBusy}>{logoutBusy ? "Çıkılıyor…" : "Çıkış yap"}</button>
+        </div>
       </header>
 
       {isNative && (
@@ -276,33 +632,82 @@ function App() {
       )}
 
       <main>
-        <section className="hero">
-          <div className="hero-copy">
-            <div className="eyebrow"><span className="eyebrow-line" /> BİTKİ SAĞLIĞI CEBİNİZDE</div>
-            <h1>Yaprağınızı tanıyın.<br /><span>Bitkinize iyi bakın.</span></h1>
-            <p className="hero-description">
-              Bir yaprak fotoğrafı yükleyin; bitkinizin sağlığı hakkında anlaşılır
-              bilgiler ve atabileceğiniz güvenli adımlar görün.
-            </p>
-            <div className="hero-trust">
-              <span><span className="trust-check">✓</span> Kullanımı kolay</span>
-              <span><span className="trust-check">✓</span> Türkçe ve anlaşılır</span>
+        {authError && <div className="auth-service-error" role="alert">{authError}</div>}
+        <section className="dashboard" aria-labelledby="dashboard-title">
+          <div className="dashboard-heading">
+            <div>
+              <span className="step-label">BUGÜNKÜ DURUM</span>
+              <h1 id="dashboard-title">Merhaba, <span>{user.name.split(" ")[0]}.</span></h1>
+              <p>Üretiminiz için bugünün öne çıkan bilgileri.</p>
             </div>
+            <span className={`ai-active ${aiActive ? "" : "ai-unavailable"}`}><span /> {aiActive ? "AI AKTİF" : "AI BAĞLANTISI YOK"}</span>
           </div>
-          <div className="hero-art" aria-hidden="true">
-            <div className="sun-glow" />
-            <div className="art-stem" />
-            <div className="art-leaf art-leaf-one" />
-            <div className="art-leaf art-leaf-two" />
-            <div className="art-leaf art-leaf-three" />
-            <div className="art-leaf art-leaf-four" />
-            <div className="art-sparkle sparkle-one">✳</div>
-            <div className="art-sparkle sparkle-two">✳</div>
-            <div className="art-caption">Her yaprak<br />bir hikâye anlatır.</div>
+          <div className="dashboard-grid">
+            <section className="dashboard-card weather-card" aria-label="Hava durumu">
+              <div className="dashboard-card-heading">
+                <div><span className="dashboard-icon">☀</span><div><span className="card-kicker">YEREL HAVA</span><h2>{weather?.city || weatherCity}</h2></div></div>
+                <button className="location-button" type="button" onClick={() => void useDeviceLocation()}>⌖ Konumum</button>
+              </div>
+              <form className="city-search" onSubmit={(event) => void searchWeather(event)}>
+                <label className="visually-hidden" htmlFor="weather-city">Şehir ara</label>
+                <input id="weather-city" value={weatherCity} onChange={(event) => setWeatherCity(event.target.value)} placeholder="Şehir adı" />
+                <button type="submit" aria-label="Şehir için hava durumunu getir">Ara</button>
+              </form>
+              {weather ? (
+                <div className="weather-summary">
+                  <div><strong>{weather.temperature}°</strong><span>{weatherCodes[weather.code] || "Hava durumu"}</span></div>
+                  <div className="weather-metrics"><span>Nem <b>%{weather.humidity}</b></span><span>48 sa. yağış <b>%{weather.rainProbability}</b></span></div>
+                </div>
+              ) : <p className="dashboard-muted">Hava durumu yükleniyor…</p>}
+              {weatherError && <p className="dashboard-error" role="status">{weatherError}</p>}
+              <p className="weather-source">Open-Meteo · Güncel tahmin</p>
+            </section>
+
+            <section className="dashboard-card notification-card" aria-label="Aktif yapay zekâ bildirimleri">
+              <div className="notification-heading"><span className="notification-spark">✳</span><span className="card-kicker">AKILLI TARIM BİLDİRİMİ</span><span className="notification-live">AKTİF</span></div>
+              <h2>{weather && weather.rainProbability >= 60 ? "Yağış olasılığı yüksek." : weather && weather.temperature >= 32 ? "Sıcaklık bitkileri zorlayabilir." : "Tarlanızı gözlemlemeyi unutmayın."}</h2>
+              <p>{weather && weather.rainProbability >= 60
+                ? `48 saatlik yağış olasılığı %${weather.rainProbability}. Sulama planınızı yağış tahminine göre gözden geçirin.`
+                : weather && weather.temperature >= 32
+                  ? "Sıcak saatlerde bitkilerinizi kontrol edin; sulama kararını toprak nemine göre verin."
+                  : "Sulama öncesi toprağın nemini kontrol edin. Hava tahmini değiştikçe öneriler güncellenir."}</p>
+              <span className="notification-foot">Hava tahminine dayalı güvenli öneri</span>
+            </section>
+
+            <a className="dashboard-action plant-action" href="#workspace">
+              <span className="action-symbol"><LeafMark /></span>
+              <span><small>BİTKİ TANIMA</small><strong>Yaprağını incele</strong><em>Fotoğrafla bitki sağlığına göz at →</em></span>
+            </a>
+            <a className="dashboard-action advisor-action" href="#advisor">
+              <span className="action-symbol">✳</span>
+              <span><small>FİKİR DANIŞMA</small><strong>Tarım asistanına sor</strong><em>Planını birlikte geliştirelim →</em></span>
+            </a>
+
+            <section className="dashboard-card advisor-card" id="advisor" aria-label="Fikir danışma">
+              <div className="advisor-heading">
+                <div><span className="dashboard-icon advisor-icon">✳</span><div><span className="card-kicker">FİKİR DANIŞMA</span><h2>Tarlanızı konuşalım</h2></div></div>
+                <span className="advisor-safe">{aiActive ? "AI danışman hazır" : "AI servisi yapılandırılmamış"}</span>
+              </div>
+              <div className="advisor-messages" aria-live="polite">
+                {advisorMessages.length === 0
+                  ? <p className="advisor-empty">Ne ekmeyi planlıyorsunuz? Ürün seçimi, ekim takvimi veya bakım fikirlerinizi sorun.</p>
+                  : advisorMessages.slice(-4).map((message, index) => (
+                    <p className={`advisor-message ${message.role}`} key={`${message.role}-${index}`}>{message.content}</p>
+                  ))}
+                {advisorBusy && <p className="advisor-thinking"><span className="spinner spinner-green" /> Öneri hazırlanıyor…</p>}
+              </div>
+              <form className="advisor-form" onSubmit={(event) => void askAdvisor(event)}>
+                <label className="visually-hidden" htmlFor="advisor-message">Danışma mesajınız</label>
+                <input id="advisor-message" value={advisorDraft} onChange={(event) => setAdvisorDraft(event.target.value)} placeholder="Örneğin: Bu sezon ne ekebilirim?" maxLength={4000} />
+                <button type="submit" disabled={advisorBusy || !advisorDraft.trim()} aria-label="Mesajı gönder">↑</button>
+              </form>
+              {advisorError && <p className="advisor-error" role="alert">{advisorError}</p>}
+              <p className="advisor-privacy">Mesajlar konuşma geçmişinize kaydedilir ve yanıt oluşturmak için AI hizmetine iletilir.</p>
+            </section>
           </div>
         </section>
 
-        <section className="workspace" aria-label="Bitki fotoğrafı analizi">
+        <section className="workspace" id="workspace" aria-label="Bitki fotoğrafı analizi">
           <div className="section-heading">
             <div>
               <span className="step-label">01 — FOTOĞRAFINI EKLE</span>

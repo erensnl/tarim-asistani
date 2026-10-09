@@ -213,3 +213,118 @@ h1 span { color: #66845b; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+.header-actions { display: flex; align-items: center; gap: 18px; }
+.signout-button { padding: 8px 12px; border: 1px solid #dfe5d8; border-radius: 7px; color: #49634a; background: transparent; font-size: 11px; }
+.signout-button:disabled { opacity: .6; }
+.session-loading { min-height: 65vh; display: flex; align-items: center; justify-content: center; gap: 13px; color: #60715f; font-size: 13px; }
+.auth-service-error { max-width: 600px; margin: 16px auto 0; padding: 12px 16px; border: 1px solid #ead7c6; border-radius: 9px; color: #8a5039; background: #fbf4ed; font-size: 12px; }
+.auth-page { min-height: 650px; display: grid; grid-template-columns: 1fr .8fr; align-items: center; gap: 8%; position: relative; overflow: hidden; padding: 55px 12%; background: #eef2e9; }
+.auth-decoration { width: 420px; height: 420px; display: grid; place-items: center; position: absolute; right: -110px; bottom: -205px; border-radius: 50%; color: rgba(96, 129, 81, .15); background: rgba(255, 255, 255, .55); }
+.auth-decoration svg { width: 210px; height: 210px; }
+.auth-card { width: 100%; max-width: 440px; position: relative; z-index: 1; padding: 38px; border: 1px solid rgba(70, 96, 64, .1); border-radius: 18px; background: #fff; box-shadow: 0 18px 55px rgba(47, 68, 42, .08); }
+.auth-card h1 { margin: 11px 0; color: #24382b; font-size: clamp(35px, 4vw, 48px); letter-spacing: -2px; }
+.auth-card h1 span { color: #66845b; }
+.auth-description { max-width: 350px; margin-bottom: 24px; color: #7d8879; font-size: 12px; line-height: 1.7; }
+.auth-tabs { display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border-radius: 8px; background: #f1f4ee; }
+.auth-tabs button { min-height: 35px; border: 0; border-radius: 6px; color: #778271; background: transparent; font-size: 11px; }
+.auth-tabs button[aria-selected="true"] { color: #35593a; background: #fff; box-shadow: 0 1px 5px rgba(35, 60, 34, .09); font-weight: 700; }
+.auth-form { display: grid; gap: 13px; margin-top: 20px; }
+.auth-form label { display: grid; gap: 6px; color: #566451; font-size: 10px; font-weight: 700; }
+.auth-form input { width: 100%; min-height: 42px; padding: 0 12px; border: 1px solid #e0e6dc; border-radius: 7px; color: #27382a; background: #fcfdfb; font-size: 12px; }
+.auth-form input:focus, .advisor-form input:focus, .city-search input:focus { outline: 2px solid #b5c8a9; outline-offset: 1px; }
+.auth-submit { width: 100%; margin-top: 4px; }
+.auth-error { margin: 0; color: #a33f34; font-size: 11px; line-height: 1.5; }
+.auth-privacy { margin: 16px 0 0; color: #969d91; font-size: 9px; line-height: 1.6; }
+.auth-side-copy { max-width: 340px; position: relative; z-index: 1; padding-bottom: 18px; }
+.auth-side-copy > span { color: #75876c; font-size: 9px; font-weight: 700; letter-spacing: 1.7px; }
+.auth-side-copy h2 { margin: 13px 0; color: #2e4933; font-size: clamp(26px, 3vw, 39px); line-height: 1.2; letter-spacing: -1.4px; }
+.auth-side-copy p { color: #798575; font-size: 12px; line-height: 1.7; }
+.dashboard { margin: 27px 0 31px; padding: 27px; border-radius: 20px; color: #f4f7f1; background: #10251b; }
+.dashboard-heading { display: flex; align-items: start; justify-content: space-between; gap: 15px; margin-bottom: 20px; }
+.dashboard-heading .step-label { color: #9dac96; }
+.dashboard-heading h1 { margin: 7px 0 4px; color: #fff; font-size: clamp(25px, 3vw, 34px); letter-spacing: -1.2px; }
+.dashboard-heading h1 span { color: #d6ff8f; }
+.dashboard-heading p { margin: 0; color: #a9b6a5; font-size: 11px; }
+.ai-active { display: inline-flex; align-items: center; gap: 7px; padding: 7px 11px; border-radius: 20px; color: #17271a; background: #d8ff8b; font-size: 9px; font-weight: 800; letter-spacing: .4px; }
+.ai-active span { width: 7px; height: 7px; border-radius: 50%; background: #54783e; }
+.ai-active.ai-unavailable { color: #624d2e; background: #f3dfaa; }
+.ai-active.ai-unavailable span { background: #b1843d; }
+.dashboard-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+.dashboard-card { min-width: 0; padding: 18px; border-radius: 14px; color: #26392c; background: #fff; }
+.dashboard-card-heading, .advisor-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dashboard-card-heading > div, .advisor-heading > div { display: flex; align-items: center; gap: 10px; }
+.dashboard-icon { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; color: #416643; background: #eaf1e5; font-size: 18px; }
+.card-kicker { display: block; color: #83907e; font-size: 8px; font-weight: 700; letter-spacing: 1px; }
+.dashboard-card h2 { margin: 4px 0 0; color: #293b2d; font-size: 14px; letter-spacing: -.2px; }
+.location-button { padding: 6px 8px; border: 0; border-radius: 6px; color: #5d7755; background: #eff4eb; font-size: 9px; }
+.city-search { display: flex; gap: 6px; margin-top: 13px; }
+.city-search input, .advisor-form input { min-width: 0; flex: 1; padding: 0 10px; border: 1px solid #e7ebe3; border-radius: 7px; color: #354738; background: #fafbf8; font-size: 10px; }
+.city-search input { height: 31px; }
+.city-search button { padding: 0 11px; border: 0; border-radius: 7px; color: #466545; background: #eaf1e5; font-size: 9px; font-weight: 700; }
+.weather-summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 13px; }
+.weather-summary > div:first-child { display: grid; gap: 1px; }
+.weather-summary strong { color: #263c2d; font: 700 34px "Manrope", system-ui, sans-serif; line-height: 1; }
+.weather-summary > div:first-child span { color: #7e8979; font-size: 9px; }
+.weather-metrics { display: grid; gap: 5px; color: #889184; font-size: 9px; text-align: right; }
+.weather-metrics b { margin-left: 4px; color: #435b45; }
+.weather-source { margin: 11px 0 0; color: #a1a89c; font-size: 8px; }
+.dashboard-muted, .dashboard-error { margin: 16px 0 0; color: #8b9687; font-size: 10px; }
+.dashboard-error, .advisor-error { color: #a33f34; }
+.notification-card { display: flex; flex-direction: column; min-height: 214px; background: #d8ff8b; }
+.notification-heading { display: flex; align-items: center; gap: 7px; }
+.notification-heading .card-kicker { color: #5d7548; }
+.notification-spark { color: #6f904c; font-size: 17px; }
+.notification-live { margin-left: auto; padding: 4px 7px; border-radius: 12px; color: #45633b; background: rgba(255, 255, 255, .55); font-size: 8px; font-weight: 800; }
+.notification-card h2 { margin: 18px 0 6px; color: #213421; font-size: 16px; }
+.notification-card p { max-width: 440px; margin: 0; color: #394c32; font-size: 10px; line-height: 1.7; }
+.notification-foot { margin-top: auto; padding-top: 12px; color: #657c51; font-size: 8px; }
+.dashboard-action { min-height: 91px; display: flex; align-items: center; gap: 13px; padding: 14px 16px; border: 1px solid rgba(255, 255, 255, .11); border-radius: 13px; color: #f1f6ed; background: #1c3426; transition: background .2s, transform .2s; }
+.dashboard-action:hover { transform: translateY(-2px); background: #25432e; }
+.action-symbol { width: 37px; height: 37px; display: grid; place-items: center; flex: 0 0 auto; border-radius: 11px; color: #d6ff8f; background: rgba(214, 255, 143, .12); font-size: 19px; }
+.action-symbol svg { width: 24px; height: 24px; }
+.dashboard-action > span:last-child { display: grid; gap: 4px; }
+.dashboard-action small { color: #aab99e; font-size: 7px; font-weight: 700; letter-spacing: 1px; }
+.dashboard-action strong { color: #fff; font-size: 12px; }
+.dashboard-action em { color: #b0bbae; font-size: 9px; font-style: normal; }
+.advisor-card { grid-column: 1 / -1; padding: 17px 18px 13px; }
+.advisor-icon { color: #6d864f; background: #edf3e3; }
+.advisor-safe { color: #87917f; font-size: 8px; }
+.advisor-messages { max-height: 160px; display: flex; flex-direction: column; gap: 7px; overflow-y: auto; margin-top: 13px; }
+.advisor-empty { max-width: 620px; margin: 0; color: #818c7c; font-size: 10px; line-height: 1.65; }
+.advisor-message { max-width: 82%; width: fit-content; margin: 0; padding: 8px 10px; border-radius: 9px; color: #455344; background: #f1f4ee; font-size: 10px; line-height: 1.6; white-space: pre-wrap; }
+.advisor-message.user { align-self: flex-end; color: #fff; background: #426b47; }
+.advisor-thinking { display: flex; align-items: center; gap: 8px; margin: 0; color: #758070; font-size: 9px; }
+.advisor-thinking .spinner { width: 13px; height: 13px; }
+.advisor-form { display: flex; gap: 7px; margin-top: 12px; }
+.advisor-form input { height: 38px; }
+.advisor-form button { width: 38px; height: 38px; border: 0; border-radius: 8px; color: #fff; background: #426b47; font-size: 18px; }
+.advisor-form button:disabled { cursor: not-allowed; background: #aab8a5; }
+.advisor-error { margin: 8px 0 0; font-size: 9px; line-height: 1.5; }
+.advisor-privacy { margin: 8px 0 0; color: #9aa195; font-size: 8px; line-height: 1.5; }
+
+@media (max-width: 850px) {
+  .auth-page { grid-template-columns: 1fr .7fr; gap: 4%; padding: 45px 7%; }
+  .auth-card { padding: 30px; }
+  .dashboard { padding: 21px; }
+}
+@media (max-width: 620px) {
+  .header-actions { gap: 9px; }
+  .header-actions .header-note { display: none; }
+  .signout-button { padding: 7px 9px; font-size: 9px; }
+  .auth-page { min-height: 0; display: block; padding: 31px 20px 36px; }
+  .auth-card { max-width: 460px; margin: auto; padding: 26px 22px; }
+  .auth-side-copy { display: none; }
+  .dashboard { margin: 17px -5px 25px; padding: 17px 14px; border-radius: 16px; }
+  .dashboard-grid { grid-template-columns: 1fr; gap: 10px; }
+  .dashboard-heading { margin-bottom: 16px; }
+  .dashboard-heading h1 { font-size: 25px; }
+  .dashboard-heading p { max-width: 200px; font-size: 9px; }
+  .ai-active { gap: 5px; padding: 6px 8px; font-size: 8px; }
+  .dashboard-card { padding: 15px; }
+  .notification-card { min-height: 190px; }
+  .dashboard-action { min-height: 76px; }
+  .advisor-card { grid-column: auto; }
+  .advisor-safe { max-width: 90px; text-align: right; line-height: 1.5; }
+  .advisor-message { max-width: 94%; }
+}
