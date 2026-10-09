@@ -339,7 +339,7 @@ app.post("/api/analyze", requireAuthentication, async (request, response) => {
     });
     return response.json({ result, identificationProvider: "Pl@ntNet" });
   } catch (error) {
-    if (error.code === "database_not_configured" || error.name?.startsWith("Mongo")) {
+    if (error.code?.startsWith("database_") || error.name?.startsWith("Mongo")) {
       return databaseErrorResponse(error, response);
     }
     if (error.code === "missing_api_key") {

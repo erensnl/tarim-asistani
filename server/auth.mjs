@@ -113,10 +113,10 @@ export async function requireAuthentication(request, response, next) {
     return next();
   } catch (error) {
     console.error("Authentication lookup failed:", error.message);
-    const configured = error.code === "database_not_configured";
+    const configured = error.code?.startsWith("database_");
     return response.status(503).json({
       error: configured
-        ? "Hesap hizmeti henüz yapılandırılmadı. Sunucu yöneticisi MongoDB bağlantısını eklemelidir."
+        ? "Hesap hizmeti henüz yapılandırılmadı. Sunucu yöneticisi MongoDB URI, kullanıcı adı ve parola ayarlarını kontrol etmelidir."
         : "Hesap hizmetine şu anda ulaşılamıyor. Lütfen biraz sonra tekrar deneyin.",
     });
   }
@@ -125,8 +125,8 @@ export async function requireAuthentication(request, response, next) {
 export function databaseErrorResponse(error, response) {
   console.error("Database request failed:", error.message);
   return response.status(503).json({
-    error: error.code === "database_not_configured"
-      ? "Hesap hizmeti henüz yapılandırılmadı. Sunucu yöneticisi MongoDB bağlantısını eklemelidir."
+    error: error.code?.startsWith("database_")
+      ? "Hesap hizmeti henüz yapılandırılmadı. Sunucu yöneticisi MongoDB URI, kullanıcı adı ve parola ayarlarını kontrol etmelidir."
       : "Veritabanına şu anda ulaşılamıyor. Lütfen biraz sonra tekrar deneyin.",
   });
 }
